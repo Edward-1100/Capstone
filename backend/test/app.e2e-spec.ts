@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
+import { DatabaseService } from './../src/database/database.service';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
@@ -10,7 +11,9 @@ describe('AppController (e2e)', () => {
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+    .overrideProvider(DatabaseService)
+    .useValue({query: jest.fn().mockResolvedValue({})}).compile();
 
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api');
