@@ -18,12 +18,18 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    
+    "migrate": "node-pg-migrate -m src/database/migrations --envPath ../.env",
+    "migrate:create": "node-pg-migrate create -m src/database/migrations --migration-file-language sql"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",
+    "@nestjs/config": "^12.0.1",
     "@nestjs/core": "^12.0.1",
     "@nestjs/platform-express": "^12.0.1",
+    "node-pg-migrate": "^9.0.0",
+    "pg": "^8.23.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },
@@ -35,6 +41,7 @@
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.0.0",
+    "@types/pg": "^8.23.1",
     "@types/supertest": "^7.0.0",
     "jest": "^30.0.0",
     "oxlint": "^1.58.0",
