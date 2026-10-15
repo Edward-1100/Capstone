@@ -9,6 +9,8 @@ on:
 jobs:
   #check backend
   backend:
+    env:
+      JWT_SECRET: qwertyasdjkl
     runs-on: ubuntu-latest
     defaults:
       #run commands in backend

@@ -1,18 +1,19 @@
-import { useEffect, useState } from 'react'
+import { Navigate, Route, Routes } from 'react-router-dom';
+import ProtectedRoute from './routes/ProtectedRoute';
+import LoginPage from './features/auth/LoginPage';
+import RegisterPage from './features/auth/RegisterPage';
+import HomePage from './features/home/HomePage';
 
-function App() {
-  const [status, setStatus] = useState('loadin\'')
-
-  useEffect(() => {
-    fetch('/api/health').then((res) => res.json()).then((data) => setStatus(data.status)).catch(() => setStatus('Counldn\'t Reach Backend'))
-  }, [])
-
+export default function App() {
   return (
-    <div>
-      <h1>Worldbuilder</h1>
-      <p>Backend: {status}</p>
-    </div>
-  )
-}
+    <Routes>
+      <Route path="/login" element={<LoginPage/>}/>
 
-export default App
+      <Route path="/register" element={<RegisterPage/>}/>
+
+      <Route path="/" element={<ProtectedRoute><HomePage/></ProtectedRoute>}/>
+
+      <Route path="*" element={<Navigate to="/" replace/>}/>
+    </Routes>
+  );
+}
