@@ -25,8 +25,10 @@ export async function apiFetch(path, options = {}) {
 
   if (!response.ok) {
     const message = Array.isArray(data?.message) ? data.message.join(', ') : data?.message;
+    const error = new Error(message || 'Request failed');
 
-    throw new Error(message || 'Request failed');
+    error.status = response.status;
+    throw error;
   }
 
   return data;
