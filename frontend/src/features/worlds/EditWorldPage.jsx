@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { deleteWorldRequest, getWorldRequest, updateWorldRequest } from '../../api/worlds';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { deleteThumbnailRequest, deleteWorldRequest, getWorldRequest, updateWorldRequest, uploadThumbnailRequest } from '../../api/worlds';
 import WorldForm from '../../components/WorldForm';
 
 export default function EditWorldPage() {
   const {id} = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const notice = location.state?.notice;
 
   const [world, setWorld] = useState(null);
   const [confirmName, setConfirmName] = useState('');
@@ -26,9 +28,18 @@ export default function EditWorldPage() {
   }, [id, navigate]);
 
   async function handleUpdate(data) {
-    await updateWorldRequest(id, data);
+    await updateWorldRequest(id, {name: data.name, description: data.description, visibility: data.visibility});
+
+    if (data.file) {
+      await uploadThumbnailRequest(id, data.file);
+    }
 
     navigate(`/worlds/${id}`);
+  }
+
+  async function handleRemoveThumbnail() {
+    await deleteThumbnailRequest(id);
+    setWorld(Object.assign({}, world, {thumbnailUrl: null}));
   }
 
   async function handleDelete(event) {
@@ -51,7 +62,9 @@ export default function EditWorldPage() {
     <div>
       <h1>Edit world</h1>
 
-      <WorldForm initial={{name: world.name, description: world.description, visibility: world.visibility}} submitLabel="Save changes" onSubmit={handleUpdate}/>
+      {notice && <p role="alert">{notice}</p>}
+
+      <WorldForm initial={{name: world.name, description: world.description, visibility: world.visibility}} currentThumbnailUrl={world.thumbnailUrl} submitLabel="Save changes" onSubmit={handleUpdate} onRemoveThumbnail={handleRemoveThumbnail}/>
 
       <p><Link to={`/worlds/${id}`}>Cancel</Link></p>
 

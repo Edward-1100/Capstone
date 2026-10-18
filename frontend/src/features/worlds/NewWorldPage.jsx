@@ -1,12 +1,22 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { createWorldRequest } from '../../api/worlds';
+import { createWorldRequest, uploadThumbnailRequest } from '../../api/worlds';
 import WorldForm from '../../components/WorldForm';
 
 export default function NewWorldPage() {
   const navigate = useNavigate();
 
   async function handleCreate(data) {
-    const world = await createWorldRequest(data);
+    const world = await createWorldRequest({name: data.name, description: data.description, visibility: data.visibility});
+
+    if (data.file) {
+      try {
+        await uploadThumbnailRequest(world.id, data.file);
+      } catch (err) {
+        navigate(`/worlds/${world.id}/edit`, {state: {notice: `World created, but the thumbnail upload failed: ${err.message}`}});
+
+        return;
+      }
+    }
 
     navigate(`/worlds/${world.id}`);
   }

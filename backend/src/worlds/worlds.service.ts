@@ -1,5 +1,8 @@
+import { randomUUID } from 'crypto';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { detectImageType } from '../common/utils/image-type';
 import { DatabaseService } from '../database/database.service';
+import { StorageService } from '../storage/storage.service';
 import { CreateWorldDto } from './dto/create-world.dto';
 import { UpdateWorldDto } from './dto/update-world.dto';
 
@@ -7,7 +10,13 @@ const WORLD_COLUMNS = `id, name, description, visibility, thumbnail_key AS "thum
 
 @Injectable()
 export class WorldsService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService, private readonly storage: StorageService) {}
+
+  private async withUrl(world: any) {
+    const thumbnailUrl = world.thumbnailKey ? await this.storage.getUrl(world.thumbnailKey) : null;
+
+    return Object.assign({}, world, {thumbnailUrl});
+  }
 
   create(userId: string, dto: CreateWorldDto) {
     return this.db.transaction(async (client) => {
@@ -24,7 +33,7 @@ export class WorldsService {
         [world.id, userId, 'owner'],
       );
 
-      return Object.assign({}, world, {role: 'owner'});
+      return Object.assign({}, world, {role: 'owner', thumbnailUrl: null});
     });
   }
 
@@ -39,7 +48,7 @@ export class WorldsService {
       [userId],
     );
 
-    return result.rows;
+    return Promise.all(result.rows.map((row) => this.withUrl(row)));
   }
 
   async findOne(id: string, role: string) {
@@ -50,7 +59,7 @@ export class WorldsService {
       throw new NotFoundException('World not found');
     }
 
-    return Object.assign({}, world, {role});
+    return this.withUrl(Object.assign({}, world, {role}));
   }
 
   async update(id: string, dto: UpdateWorldDto) {
@@ -70,11 +79,49 @@ export class WorldsService {
       throw new NotFoundException('World not found');
     }
 
-    return Object.assign({}, world, {role: 'owner'});
+    return this.withUrl(Object.assign({}, world, {role: 'owner'}));
+  }
+
+  async setThumbnail(id: string, file: Express.Multer.File | undefined) {
+    if (!file) {
+      throw new BadRequestException('File is required');
+    }
+
+    const type = detectImageType(file.buffer);
+
+    if (!type) {
+      throw new BadRequestException('File must be PNG, JPEG, or WebP');
+    }
+
+    const existing = await this.db.query('SELECT thumbnail_key FROM worlds WHERE id = $1', [id]);
+    const oldKey = existing.rows[0]?.thumbnail_key ?? null;
+    const key = `worlds/${id}/thumbnail-${randomUUID()}.${type.ext}`;
+
+    await this.storage.upload(key, file.buffer, type.mime);
+    await this.db.query('UPDATE worlds SET thumbnail_key = $2, updated_at = now() WHERE id = $1', [id, key]);
+
+    if (oldKey) {
+      await this.storage.remove(oldKey).catch(() => null);
+    }
+
+    return this.findOne(id, 'owner');
+  }
+
+  async removeThumbnail(id: string) {
+    const existing = await this.db.query('SELECT thumbnail_key FROM worlds WHERE id = $1', [id]);
+    const key = existing.rows[0]?.thumbnail_key ?? null;
+
+    await this.db.query('UPDATE worlds SET thumbnail_key = NULL, updated_at = now() WHERE id = $1', [id]);
+
+    if (key) {
+      await this.storage.remove(key).catch(() => null);
+    }
+
+    return this.findOne(id, 'owner');
   }
 
   async remove(id: string, confirmName: string) {
-    const result = await this.db.query('SELECT name FROM worlds WHERE id = $1', [id]);
+    const result = await this.db.query('SELECT name, thumbnail_key FROM worlds WHERE id = $1', [id]);
     const world = result.rows[0];
 
     if (!world) {
@@ -86,6 +133,10 @@ export class WorldsService {
     }
 
     await this.db.query('DELETE FROM worlds WHERE id = $1', [id]);
+
+    if (world.thumbnail_key) {
+      await this.storage.remove(world.thumbnail_key).catch(() => null);
+    }
 
     return {deleted: true};
   }

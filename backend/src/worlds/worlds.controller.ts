@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { WorldRole } from '../common/decorators/world-role.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt-auth.guard';
@@ -35,6 +36,22 @@ export class WorldsController {
   @UseGuards(JwtAuthGuard, WorldRoleGuard)
   update(@Param('id') id: string, @Body() dto: UpdateWorldDto) {
     return this.worlds.update(id, dto);
+  }
+
+  @Put(':id/thumbnail')
+  @WorldRole('owner')
+  @UseGuards(JwtAuthGuard, WorldRoleGuard)
+  @UseInterceptors(FileInterceptor('file', {limits: {fileSize: 2 * 1024 * 1024, files: 1}}))
+  uploadThumbnail(@Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
+    return this.worlds.setThumbnail(id, file);
+  }
+
+  @Delete(':id/thumbnail')
+  @HttpCode(200)
+  @WorldRole('owner')
+  @UseGuards(JwtAuthGuard, WorldRoleGuard)
+  removeThumbnail(@Param('id') id: string) {
+    return this.worlds.removeThumbnail(id);
   }
 
   @Delete(':id')

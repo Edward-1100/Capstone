@@ -1,21 +1,65 @@
 import { useState } from 'react';
 
-export default function WorldForm({initial, submitLabel, onSubmit}) {
+const MAX_SIZE = 2 * 1024 * 1024;
+const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+
+export default function WorldForm({initial, currentThumbnailUrl, submitLabel, onSubmit, onRemoveThumbnail}) {
   const [name, setName] = useState(initial.name);
   const [description, setDescription] = useState(initial.description);
   const [visibility, setVisibility] = useState(initial.visibility);
+  const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const shownUrl = previewUrl || currentThumbnailUrl;
+
   function handleFileChange(event) {
-    const file = event.target.files[0];
+    const chosen = event.target.files[0];
 
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
     }
 
-    setPreviewUrl(file ? URL.createObjectURL(file) : '');
+    setError('');
+
+    if (!chosen) {
+      setFile(null);
+      setPreviewUrl('');
+
+      return;
+    }
+
+    if (!ALLOWED_TYPES.includes(chosen.type)) {
+      setError('Thumbnail must be a PNG, JPEG, or WebP image');
+      setFile(null);
+      setPreviewUrl('');
+      event.target.value = '';
+
+      return;
+    }
+
+    if (chosen.size > MAX_SIZE) {
+      setError('Thumbnail must be 2 MB or smaller');
+      setFile(null);
+      setPreviewUrl('');
+      event.target.value = '';
+
+      return;
+    }
+
+    setFile(chosen);
+    setPreviewUrl(URL.createObjectURL(chosen));
+  }
+
+  async function handleRemove() {
+    setError('');
+
+    try {
+      await onRemoveThumbnail();
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   async function handleSubmit(event) {
@@ -24,7 +68,7 @@ export default function WorldForm({initial, submitLabel, onSubmit}) {
     setSubmitting(true);
 
     try {
-      await onSubmit({name, description, visibility});
+      await onSubmit({name, description, visibility, file});
     } catch (err) {
       setError(err.message);
       setSubmitting(false);
@@ -52,10 +96,12 @@ export default function WorldForm({initial, submitLabel, onSubmit}) {
       </div>
 
       <div>
-        <label htmlFor="thumbnail">Thumbnail</label>
-        <input id="thumbnail" type="file" accept="image/*" onChange={handleFileChange}/>
-        {previewUrl && <img src={previewUrl} alt="Thumbnail preview" width="200"/>}
-        <p>Thumbnails are not yet set up</p>
+        <label htmlFor="thumbnail">Thumbnail (PNG, JPEG, or WebP, up to 2 MB)</label>
+        <input id="thumbnail" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFileChange}/>
+
+        {shownUrl && <img src={shownUrl} alt="Thumbnail" width="200"/>}
+
+        {currentThumbnailUrl && !previewUrl && onRemoveThumbnail && <button type="button" onClick={handleRemove}>Remove thumbnail</button>}
       </div>
 
       {error && <p role="alert">{error}</p>}

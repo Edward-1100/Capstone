@@ -19,3 +19,15 @@ export function updateWorldRequest(id, data) {
 export function deleteWorldRequest(id, confirmName) {
   return apiFetch(`/worlds/${id}`, {method: 'DELETE', body: JSON.stringify({confirmName})});
 }
+
+export function uploadThumbnailRequest(id, file) {
+  const form = new FormData();
+
+  form.append('file', file);
+
+  return apiFetch(`/worlds/${id}/thumbnail`, {method: 'PUT', body: form});
+}
+
+export function deleteThumbnailRequest(id) {
+  return apiFetch(`/worlds/${id}/thumbnail`, {method: 'DELETE'});
+}

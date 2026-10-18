@@ -44,6 +44,8 @@ export default function WorldsPage() {
       <ul>
         {worlds.map((world) => (
           <li key={world.id}>
+            {world.thumbnailUrl && <img src={world.thumbnailUrl} alt="" width="60"/>}
+
             <Link to={`/worlds/${world.id}`}>{world.name}</Link> ({world.visibility}, {world.role})
           </li>
         ))}

@@ -26,6 +26,8 @@ export default function WorldPage() {
 
       <h1>{world.name}</h1>
 
+      {world.thumbnailUrl && <img src={world.thumbnailUrl} alt="World thumbnail" width="300"/>}
+
       <p>{world.visibility} world, your role: {world.role}</p>
 
       <p>{world.description}</p>
