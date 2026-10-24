@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { detectImageType } from '../common/utils/image-type';
+import { BUILT_IN_TYPES } from '../entry-types/built-in-types';
 import { DatabaseService } from '../database/database.service';
 import { StorageService } from '../storage/storage.service';
 import { CreateWorldDto } from './dto/create-world.dto';
@@ -32,6 +33,13 @@ export class WorldsService {
         'INSERT INTO world_members (world_id, user_id, role) VALUES ($1, $2, $3)',
         [world.id, userId, 'owner'],
       );
+
+      for (const type of BUILT_IN_TYPES) {
+        await client.query(
+          'INSERT INTO entry_types (world_id, name, kind) VALUES ($1, $2, $3)',
+          [world.id, type.name, type.kind],
+        );
+      }
 
       return Object.assign({}, world, {role: 'owner', thumbnailUrl: null});
     });
@@ -132,10 +140,19 @@ export class WorldsService {
       throw new BadRequestException('Confirmation does not match world name');
     }
 
+    const images = await this.db.query(
+      'SELECT i.storage_key FROM entry_images i JOIN entries e ON e.id = i.entry_id WHERE e.world_id = $1',
+      [id],
+    );
+
     await this.db.query('DELETE FROM worlds WHERE id = $1', [id]);
 
     if (world.thumbnail_key) {
       await this.storage.remove(world.thumbnail_key).catch(() => null);
+    }
+
+    for (const row of images.rows) {
+      await this.storage.remove(row.storage_key).catch(() => null);
     }
 
     return {deleted: true};

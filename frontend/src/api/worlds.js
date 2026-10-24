@@ -31,3 +31,7 @@ export function uploadThumbnailRequest(id, file) {
 export function deleteThumbnailRequest(id) {
   return apiFetch(`/worlds/${id}/thumbnail`, {method: 'DELETE'});
 }
+
+export function getDashboardRequest(id) {
+  return apiFetch(`/worlds/${id}/dashboard`);
+}
