@@ -2,7 +2,7 @@
 
 Web application for creating and keeping track of worldbuilding projects. Users add things to the world, then connect them with relationships.
 
-## Currently Working
+## Currently Working On
 
 - User registration, login, and logout
 - Create, edit, and delete worlds, with public or private visibility
