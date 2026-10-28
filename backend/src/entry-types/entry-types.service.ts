@@ -18,8 +18,17 @@ export class EntryTypesService {
        ORDER BY lower(t.name)`,
       [worldId],
     );
+    const fields = await this.db.query(
+      `SELECT f.id, f.type_id AS "typeId", f.name, f.field_type AS "fieldType", f.required, f.position, f.config,
+              (SELECT count(*)::int FROM active_entries e WHERE e.type_id = f.type_id AND e.fields ? f.id::text) AS "usageCount"
+       FROM type_fields f
+       JOIN entry_types t ON t.id = f.type_id
+       WHERE t.world_id = $1
+       ORDER BY f.position, f.created_at`,
+      [worldId],
+    );
 
-    return result.rows;
+    return result.rows.map((type) => Object.assign({}, type, {fields: fields.rows.filter((field) => field.typeId === type.id)}));
   }
 
   async create(worldId: string, dto: EntryTypeDto) {
@@ -29,7 +38,7 @@ export class EntryTypesService {
         [worldId, dto.name.trim(), dto.kind ?? null],
       );
 
-      return Object.assign({}, result.rows[0], {entryCount: 0});
+      return Object.assign({}, result.rows[0], {entryCount: 0, fields: []});
     } catch (err: any) {
       if (err.code === '23505') {
         throw new ConflictException('A type with that name already exists');

@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, IsUUID, Matches, MaxLength, Min } from 'class-validator';
+import { IsInt, IsObject, IsOptional, IsString, IsUUID, Matches, MaxLength, Min } from 'class-validator';
 
 export class UpdateEntryDto {
   @IsInt({message: 'version must be a whole number'})
@@ -19,4 +19,8 @@ export class UpdateEntryDto {
   @IsOptional()
   @IsUUID('all', {message: 'typeId must be a valid id'})
   typeId?: string | null;
+
+  @IsOptional()
+  @IsObject({message: 'fields must be an object'})
+  fields?: Record<string, any>;
 }

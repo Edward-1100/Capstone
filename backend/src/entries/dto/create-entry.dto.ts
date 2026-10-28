@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsUUID, Matches, MaxLength } from 'class-validator';
+import { IsObject, IsOptional, IsString, IsUUID, Matches, MaxLength } from 'class-validator';
 
 export class CreateEntryDto {
   @IsString()
@@ -14,4 +14,8 @@ export class CreateEntryDto {
   @IsOptional()
   @IsUUID('all', {message: 'typeId must be a valid id'})
   typeId?: string | null;
+
+  @IsOptional()
+  @IsObject({message: 'fields must be an object'})
+  fields?: Record<string, any>;
 }

@@ -20,7 +20,17 @@ describe('EntriesService', () => {
     it('returns a conflict when the version is stale', async () => {
       const {service, client} = createService();
 
-      client.query.mockResolvedValueOnce({rows: []}).mockResolvedValueOnce({rows: [{}]});
+      client.query.mockResolvedValueOnce({rows: [{name: 'Old', type_id: null, fields: {}, version: 2}]});
+
+      await expect(service.update('w1', 'e1', 'u1', {version: 1, name: 'New'})).rejects.toThrow(ConflictException);
+    });
+
+    it('returns a conflict when someone saves between the read and the write', async () => {
+      const {service, client} = createService();
+
+      client.query
+        .mockResolvedValueOnce({rows: [{name: 'Old', type_id: null, fields: {}, version: 1}]})
+        .mockResolvedValueOnce({rows: []});
 
       await expect(service.update('w1', 'e1', 'u1', {version: 1, name: 'New'})).rejects.toThrow(ConflictException);
     });
@@ -28,7 +38,7 @@ describe('EntriesService', () => {
     it('returns not found when the entry does not exist', async () => {
       const {service, client} = createService();
 
-      client.query.mockResolvedValueOnce({rows: []}).mockResolvedValueOnce({rows: []});
+      client.query.mockResolvedValueOnce({rows: []});
 
       await expect(service.update('w1', 'e1', 'u1', {version: 1, name: 'New'})).rejects.toThrow(NotFoundException);
     });
@@ -36,13 +46,16 @@ describe('EntriesService', () => {
     it('saves and logs the change when the version matches', async () => {
       const {service, db, client} = createService();
 
-      client.query.mockResolvedValueOnce({rows: [{name: 'New'}]}).mockResolvedValueOnce({rows: []});
+      client.query
+        .mockResolvedValueOnce({rows: [{name: 'Old', type_id: null, fields: {}, version: 1}]})
+        .mockResolvedValueOnce({rows: [{name: 'New'}]})
+        .mockResolvedValueOnce({rows: []});
       db.query.mockResolvedValueOnce({rows: [{id: 'e1', name: 'New', version: 2}]}).mockResolvedValueOnce({rows: []});
 
       const result = await service.update('w1', 'e1', 'u1', {version: 1, name: 'New'});
 
       expect(result.name).toBe('New');
-      expect(client.query.mock.calls[1][1]).toEqual(['w1', 'e1', 'updated', 'New', 'u1']);
+      expect(client.query.mock.calls[2][1]).toEqual(['w1', 'e1', 'updated', 'New', 'u1']);
     });
   });
 

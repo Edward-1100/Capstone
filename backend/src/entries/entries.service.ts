@@ -4,6 +4,7 @@ import { isUUID } from 'class-validator';
 import { PoolClient } from 'pg';
 import { detectImageType } from '../common/utils/image-type';
 import { DatabaseService } from '../database/database.service';
+import { applyFieldValues } from '../entry-types/field-values';
 import { StorageService } from '../storage/storage.service';
 import { CreateEntryDto } from './dto/create-entry.dto';
 import { UpdateEntryDto } from './dto/update-entry.dto';
@@ -47,6 +48,25 @@ export class EntriesService {
     await this.log(client, worldId, entryId, 'updated', name, userId);
   }
 
+  private async loadFields(client: PoolClient, worldId: string, typeId: string | null) {
+    if (!typeId) {
+      return [];
+    }
+
+    const type = await client.query('SELECT 1 FROM entry_types WHERE id = $1 AND world_id = $2', [typeId, worldId]);
+
+    if (!type.rows[0]) {
+      throw new BadRequestException('Type not found in this world');
+    }
+
+    const result = await client.query(
+      'SELECT id, name, field_type AS "fieldType", config FROM type_fields WHERE type_id = $1',
+      [typeId],
+    );
+
+    return result.rows;
+  }
+
   private checkImage(file: Express.Multer.File | undefined) {
     if (!file) {
       throw new BadRequestException('File is required');
@@ -82,7 +102,7 @@ export class EntriesService {
 
   async findOne(worldId: string, entryId: string) {
     const result = await this.db.query(
-      `SELECT e.id, e.type_id AS "typeId", e.name, e.description, e.version,
+      `SELECT e.id, e.type_id AS "typeId", e.name, e.description, e.version, e.fields,
               e.created_at AS "createdAt", e.updated_at AS "updatedAt",
               t.name AS "typeName", t.kind AS "typeKind"
        FROM active_entries e
@@ -101,18 +121,23 @@ export class EntriesService {
       [entryId],
     );
     const withUrls = await Promise.all(images.rows.map(async (row) => ({id: row.id, position: row.position, url: await this.storage.getUrl(row.storage_key)})));
+    const typeFields = entry.typeId
+      ? await this.db.query('SELECT id, name, field_type AS "fieldType", required, position, config FROM type_fields WHERE type_id = $1 ORDER BY position, created_at', [entry.typeId])
+      : null;
 
-    return Object.assign({}, entry, {images: withUrls});
+    return Object.assign({}, entry, {images: withUrls, typeFields: typeFields ? typeFields.rows : []});
   }
 
   async create(worldId: string, userId: string, dto: CreateEntryDto) {
     try {
       const id = await this.db.transaction(async (client) => {
+        const definitions = await this.loadFields(client, worldId, dto.typeId ?? null);
+        const fields = applyFieldValues(definitions, {}, dto.fields ?? {});
         const result = await client.query(
-          `INSERT INTO entries (world_id, type_id, name, description, created_by)
-           VALUES ($1, $2, $3, $4, $5)
+          `INSERT INTO entries (world_id, type_id, name, description, created_by, fields)
+           VALUES ($1, $2, $3, $4, $5, $6::jsonb)
            RETURNING id`,
-          [worldId, dto.typeId ?? null, dto.name.trim(), dto.description ?? '', userId],
+          [worldId, dto.typeId ?? null, dto.name.trim(), dto.description ?? '', userId, JSON.stringify(fields)],
         );
         const entryId = result.rows[0].id;
 
@@ -130,33 +155,46 @@ export class EntriesService {
   async update(worldId: string, entryId: string, userId: string, dto: UpdateEntryDto) {
     try {
       await this.db.transaction(async (client) => {
+        const current = await client.query(
+          'SELECT name, type_id, fields, version FROM entries WHERE id = $1 AND world_id = $2 AND deleted_at IS NULL',
+          [entryId, worldId],
+        );
+        const entry = current.rows[0];
+
+        if (!entry) {
+          throw new NotFoundException('Entry not found');
+        }
+
+        if (entry.version !== dto.version) {
+          throw new ConflictException('Entry was changed by someone else');
+        }
+
+        let fields = entry.fields;
+
+        if (dto.fields !== undefined) {
+          const definitions = await this.loadFields(client, worldId, dto.typeId !== undefined ? dto.typeId : entry.type_id);
+
+          fields = applyFieldValues(definitions, entry.fields, dto.fields);
+        }
+
         const result = await client.query(
           `UPDATE entries
            SET name = COALESCE($3, name),
                description = COALESCE($4, description),
                type_id = CASE WHEN $5::boolean THEN $6::uuid ELSE type_id END,
+               fields = $8::jsonb,
                version = version + 1,
                updated_at = now()
            WHERE id = $1 AND world_id = $2 AND version = $7 AND deleted_at IS NULL
            RETURNING name`,
-          [entryId, worldId, dto.name?.trim() ?? null, dto.description ?? null, dto.typeId !== undefined, dto.typeId ?? null, dto.version],
+          [entryId, worldId, dto.name?.trim() ?? null, dto.description ?? null, dto.typeId !== undefined, dto.typeId ?? null, dto.version, JSON.stringify(fields)],
         );
-        const entry = result.rows[0];
 
-        if (!entry) {
-          const exists = await client.query(
-            'SELECT 1 FROM entries WHERE id = $1 AND world_id = $2 AND deleted_at IS NULL',
-            [entryId, worldId],
-          );
-
-          if (!exists.rows[0]) {
-            throw new NotFoundException('Entry not found');
-          }
-
+        if (!result.rows[0]) {
           throw new ConflictException('Entry was changed by someone else');
         }
 
-        await this.log(client, worldId, entryId, 'updated', entry.name, userId);
+        await this.log(client, worldId, entryId, 'updated', result.rows[0].name, userId);
       });
 
       return await this.findOne(worldId, entryId);

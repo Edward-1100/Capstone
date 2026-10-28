@@ -29,6 +29,29 @@ export class DashboardService {
       'SELECT id, name FROM active_entries WHERE world_id = $1 AND type_id IS NULL ORDER BY updated_at DESC LIMIT 20',
       [worldId],
     );
+    const missingRequired = await this.db.query(
+      `SELECT e.id AS "entryId", e.name, f.name AS "fieldName"
+       FROM active_entries e
+       JOIN type_fields f ON f.type_id = e.type_id AND f.required
+       WHERE e.world_id = $1 AND NOT (e.fields ? f.id::text)
+       ORDER BY e.name, f.position
+       LIMIT 50`,
+      [worldId],
+    );
+    const outOfRange = await this.db.query(
+      `SELECT e.id AS "entryId", e.name, f.name AS "fieldName"
+       FROM active_entries e
+       JOIN type_fields f ON f.type_id = e.type_id AND f.field_type = 'scale'
+       WHERE e.world_id = $1
+         AND e.fields ? f.id::text
+         AND CASE WHEN jsonb_typeof(e.fields -> f.id::text) = 'number'
+               THEN (e.fields -> f.id::text)::numeric < (f.config ->> 'min')::numeric OR (e.fields -> f.id::text)::numeric > (f.config ->> 'max')::numeric
+               ELSE false
+             END
+       ORDER BY e.name
+       LIMIT 50`,
+      [worldId],
+    );
     const recentlyCreated = await this.recent(worldId, 'created');
     const recentlyModified = await this.recent(worldId, 'updated');
     const recentlyDeleted = await this.recent(worldId, 'deleted');
@@ -39,6 +62,8 @@ export class DashboardService {
       recentlyModified,
       recentlyDeleted,
       untyped: untyped.rows,
+      missingRequired: missingRequired.rows,
+      outOfRange: outOfRange.rows,
     };
   }
 }
