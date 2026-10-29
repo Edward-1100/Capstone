@@ -2,17 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { createEntryTypeRequest, deleteEntryTypeRequest, listEntryTypesRequest, updateEntryTypeRequest } from '../../api/entryTypes';
 import { getWorldRequest } from '../../api/worlds';
-
-const KINDS = ['character', 'location', 'faction', 'event'];
-
-function KindSelect({id, value, onChange}) {
-  return (
-    <select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
-      <option value="">None</option>
-      {KINDS.map((kind) => <option key={kind} value={kind}>{kind}</option>)}
-    </select>
-  );
-}
+import TypeFields from '../../components/TypeFields';
 
 export default function EntryTypesPage() {
   const {id} = useParams();
@@ -21,10 +11,8 @@ export default function EntryTypesPage() {
   const [world, setWorld] = useState(null);
   const [types, setTypes] = useState([]);
   const [newName, setNewName] = useState('');
-  const [newKind, setNewKind] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
-  const [editKind, setEditKind] = useState('');
   const [deletingType, setDeletingType] = useState(null);
   const [confirmName, setConfirmName] = useState('');
   const [moveToTypeId, setMoveToTypeId] = useState('');
@@ -48,9 +36,8 @@ export default function EntryTypesPage() {
     setError('');
 
     try {
-      await createEntryTypeRequest(id, newName, newKind);
+      await createEntryTypeRequest(id, newName);
       setNewName('');
-      setNewKind('');
       await reloadTypes();
     } catch (err) {
       setError(err.message);
@@ -61,7 +48,6 @@ export default function EntryTypesPage() {
     setError('');
     setEditingId(type.id);
     setEditName(type.name);
-    setEditKind(type.kind || '');
   }
 
   async function handleRename(event, typeId) {
@@ -69,7 +55,7 @@ export default function EntryTypesPage() {
     setError('');
 
     try {
-      await updateEntryTypeRequest(id, typeId, editName, editKind);
+      await updateEntryTypeRequest(id, typeId, editName);
       setEditingId(null);
       await reloadTypes();
     } catch (err) {
@@ -102,7 +88,6 @@ export default function EntryTypesPage() {
   }
 
   const canEdit = world.role === 'owner' || world.role === 'editor';
-  const lastOfKind = deletingType && deletingType.kind && !types.some((type) => type.id !== deletingType.id && type.kind === deletingType.kind);
 
   return (
     <div>
@@ -115,12 +100,11 @@ export default function EntryTypesPage() {
       <ul>
         {types.map((type) => (
           <li key={type.id}>
-            {editingId !== type.id && <span>{type.name} ({type.entryCount} entries){type.kind && `, acts as ${type.kind}`}</span>}
+            {editingId !== type.id && <span>{type.name} ({type.entryCount} entries)</span>}
 
             {editingId === type.id && (
               <form onSubmit={(e) => handleRename(e, type.id)}>
                 <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} maxLength={50} required/>
-                <KindSelect id={`kind-${type.id}`} value={editKind} onChange={setEditKind}/>
                 <button type="submit">Save</button>
                 <button type="button" onClick={() => setEditingId(null)}>Cancel</button>
               </form>
@@ -129,6 +113,8 @@ export default function EntryTypesPage() {
             {canEdit && editingId !== type.id && <button onClick={() => startEdit(type)}>Edit</button>}
 
             {canEdit && editingId !== type.id && <button onClick={() => startDelete(type)}>Delete</button>}
+
+            <TypeFields worldId={id} type={type} canEdit={canEdit} onChanged={reloadTypes}/>
           </li>
         ))}
       </ul>
@@ -137,9 +123,6 @@ export default function EntryTypesPage() {
         <form onSubmit={handleCreate}>
           <label htmlFor="newName">New type</label>
           <input id="newName" type="text" value={newName} onChange={(e) => setNewName(e.target.value)} maxLength={50} required/>
-
-          <label htmlFor="newKind">Acts as</label>
-          <KindSelect id="newKind" value={newKind} onChange={setNewKind}/>
 
           <button type="submit">Add type</button>
         </form>
@@ -150,8 +133,6 @@ export default function EntryTypesPage() {
           <h2>Delete {deletingType.name}</h2>
 
           <p>{deletingType.entryCount} entries use this type.</p>
-
-          {lastOfKind && <p>This is the only type that acts as {deletingType.kind}. Entries will lose features that depend on it, like the location hierarchy and the event timeline, until another type acts as {deletingType.kind}.</p>}
 
           {deletingType.entryCount > 0 && (
             <div>

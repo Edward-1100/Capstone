@@ -30,7 +30,7 @@ export default function EditEntryPage() {
 
   async function handleUpdate(data) {
     try {
-      await updateEntryRequest(id, entryId, {name: data.name, description: data.description, typeId: data.typeId, version: entry.version});
+      await updateEntryRequest(id, entryId, {name: data.name, description: data.description, typeId: data.typeId, fields: data.fields, version: entry.version});
     } catch (err) {
       if (err.status === 409) {
         setConflict(true);
@@ -55,7 +55,7 @@ export default function EditEntryPage() {
     <div>
       <h1>Edit entry</h1>
 
-      <EntryForm key={entry.version} initial={{name: entry.name, description: entry.description, typeId: entry.typeId}} types={types} submitLabel="Save changes" onSubmit={handleUpdate}/>
+      <EntryForm key={entry.version} initial={{name: entry.name, description: entry.description, typeId: entry.typeId, fields: entry.fields}} types={types} submitLabel="Save changes" onSubmit={handleUpdate}/>
 
       {conflict && <button onClick={handleReload}>Load latest version</button>}
 

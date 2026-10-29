@@ -93,12 +93,24 @@ export default function WorldPage() {
       <section>
         <h2>Needs attention</h2>
 
-        {dashboard.untyped.length === 0 && <p>Nothing needs attention</p>}
+        {dashboard.untyped.length === 0 && dashboard.missingRequired.length === 0 && dashboard.outOfRange.length === 0 && <p>Nothing needs attention</p>}
 
         {dashboard.untyped.length > 0 && <p>Entries without a type:</p>}
 
         <ul>
           {dashboard.untyped.map((entry) => <li key={entry.id}><Link to={`/worlds/${world.id}/entries/${entry.id}`}>{entry.name}</Link></li>)}
+        </ul>
+
+        {dashboard.missingRequired.length > 0 && <p>Entries missing a required field:</p>}
+
+        <ul>
+          {dashboard.missingRequired.map((item) => <li key={`${item.entryId}-${item.fieldName}`}><Link to={`/worlds/${world.id}/entries/${item.entryId}`}>{item.name}</Link>, missing {item.fieldName}</li>)}
+        </ul>
+
+        {dashboard.outOfRange.length > 0 && <p>Entries with a value outside a scale's range:</p>}
+
+        <ul>
+          {dashboard.outOfRange.map((item) => <li key={`${item.entryId}-${item.fieldName}`}><Link to={`/worlds/${world.id}/entries/${item.entryId}`}>{item.name}</Link>, {item.fieldName}</li>)}
         </ul>
       </section>
     </div>

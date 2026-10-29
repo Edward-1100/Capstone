@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { addEntryImageRequest, deleteEntryImageRequest, deleteEntryRequest, getEntryRequest, replaceEntryImageRequest } from '../../api/entries';
 import { getWorldRequest } from '../../api/worlds';
+import { formatValue } from '../../utils/fields';
 
 const MAX_SIZE = 5 * 1024 * 1024;
 const MAX_IMAGES = 5;
@@ -125,6 +126,10 @@ export default function EntryPage() {
       <p>Type: {entry.typeName || 'none'}</p>
 
       <p>{entry.description}</p>
+
+      {entry.typeFields.length > 0 && <h2>Details</h2>}
+
+      {entry.typeFields.map((definition) => <p key={definition.id}>{definition.name}: {formatValue(definition, entry.fields[definition.id]) || 'not set'}</p>)}
 
       {error && <p role="alert">{error}</p>}
 

@@ -3,7 +3,7 @@ import { DatabaseService } from '../database/database.service';
 import { DeleteEntryTypeDto } from './dto/delete-entry-type.dto';
 import { EntryTypeDto } from './dto/entry-type.dto';
 
-const TYPE_COLUMNS = `id, name, kind, created_at AS "createdAt"`;
+const TYPE_COLUMNS = `id, name, created_at AS "createdAt"`;
 
 @Injectable()
 export class EntryTypesService {
@@ -11,7 +11,7 @@ export class EntryTypesService {
 
   async list(worldId: string) {
     const result = await this.db.query(
-      `SELECT t.id, t.name, t.kind, t.created_at AS "createdAt",
+      `SELECT t.id, t.name, t.created_at AS "createdAt",
               (SELECT count(*)::int FROM active_entries e WHERE e.type_id = t.id) AS "entryCount"
        FROM entry_types t
        WHERE t.world_id = $1
@@ -34,8 +34,8 @@ export class EntryTypesService {
   async create(worldId: string, dto: EntryTypeDto) {
     try {
       const result = await this.db.query(
-        `INSERT INTO entry_types (world_id, name, kind) VALUES ($1, $2, $3) RETURNING ${TYPE_COLUMNS}`,
-        [worldId, dto.name.trim(), dto.kind ?? null],
+        `INSERT INTO entry_types (world_id, name) VALUES ($1, $2) RETURNING ${TYPE_COLUMNS}`,
+        [worldId, dto.name.trim()],
       );
 
       return Object.assign({}, result.rows[0], {entryCount: 0, fields: []});
@@ -53,11 +53,10 @@ export class EntryTypesService {
       const result = await this.db.query(
         `UPDATE entry_types
          SET name = $3,
-             kind = CASE WHEN $4::boolean THEN $5::text ELSE kind END,
              updated_at = now()
          WHERE id = $1 AND world_id = $2
          RETURNING ${TYPE_COLUMNS}`,
-        [typeId, worldId, dto.name.trim(), dto.kind !== undefined, dto.kind ?? null],
+        [typeId, worldId, dto.name.trim()],
       );
       const type = result.rows[0];
 

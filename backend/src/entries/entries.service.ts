@@ -88,7 +88,7 @@ export class EntriesService {
 
     const result = await this.db.query(
       `SELECT e.id, e.type_id AS "typeId", e.name, e.version, e.updated_at AS "updatedAt",
-              t.name AS "typeName", t.kind AS "typeKind"
+              t.name AS "typeName"
        FROM active_entries e
        LEFT JOIN entry_types t ON t.id = e.type_id
        WHERE e.world_id = $1
@@ -104,7 +104,7 @@ export class EntriesService {
     const result = await this.db.query(
       `SELECT e.id, e.type_id AS "typeId", e.name, e.description, e.version, e.fields,
               e.created_at AS "createdAt", e.updated_at AS "updatedAt",
-              t.name AS "typeName", t.kind AS "typeKind"
+              t.name AS "typeName"
        FROM active_entries e
        LEFT JOIN entry_types t ON t.id = e.type_id
        WHERE e.id = $1 AND e.world_id = $2`,

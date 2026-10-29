@@ -42,7 +42,7 @@ export default function NewEntryPage() {
     <div>
       <h1>New entry</h1>
 
-      <EntryForm initial={{name: '', description: '', typeId: searchParams.get('type')}} types={types} submitLabel="Create entry" onSubmit={handleCreate}/>
+      <EntryForm initial={{name: '', description: '', typeId: searchParams.get('type'), fields: {}}} types={types} submitLabel="Create entry" onSubmit={handleCreate}/>
 
       <p><Link to={`/worlds/${id}/entries`}>Back to entries</Link></p>
     </div>

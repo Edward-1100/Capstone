@@ -36,8 +36,8 @@ export class WorldsService {
 
       for (const type of BUILT_IN_TYPES) {
         await client.query(
-          'INSERT INTO entry_types (world_id, name, kind) VALUES ($1, $2, $3)',
-          [world.id, type.name, type.kind],
+          'INSERT INTO entry_types (world_id, name) VALUES ($1, $2)',
+          [world.id, type.name],
         );
       }
 
