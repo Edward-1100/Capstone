@@ -8,7 +8,7 @@ Web application for creating and keeping track of worldbuilding projects. Users 
 - Create, edit, and delete worlds, with public or private visibility
 - Owner, editor, and viewer access levels
 - World thumbnails stored in Backblaze B2
-- Entry types: four built-in types per world (character, location, faction, event), and ability to add custom types, currently can act as any of the four built in types or none.
+- Entry types: four built-in types per world (character, location, faction, event), and ability to add custom types
 - Entries with names, descriptions, and types, filtered by type
 - Up to 5 images per entry
 - Edit conflict detection with a version number on each entry
@@ -38,7 +38,7 @@ Create a `.env` file in the project root with these variables:
 POSTGRES_USER=
 POSTGRES_PASSWORD=
 POSTGRES_DB=
-DATABASE_URL=postgres:// [user] : [password] @localhost:5432/ [DB]  (Replace with values and emove []s and spaces)
+DATABASE_URL=postgres:// [user] : [password] @localhost:5432/ [DB]  (Replace with values and remove []s and spaces)
 JWT_SECRET=
 B2_ENDPOINT=
 B2_REGION=
@@ -102,7 +102,6 @@ frontend: React
 ## Entries
 
 - Every world starts with four types: Characters, Locations, Factions, and Events. They can be renamed, edited, or deleted like any custom type
-- A type can act as a character, location, faction, or event. Later features like the location hierarchy and the timeline use this, so a custom "Dungeon" type can act as a location
 - Deleting a type with entries asks for confirmation and lets the user move the entries to another type or leave them without a type
 - Each entry has a version number. Saving an old version is rejected with a conflict, so one user's edit can't silently overwrite another's
 - Deleting an entry keeps its data and records it in the activity log. Its images are kept for 7 days
