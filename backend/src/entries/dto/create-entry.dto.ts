@@ -16,6 +16,10 @@ export class CreateEntryDto {
   typeId?: string | null;
 
   @IsOptional()
+  @IsUUID('all', {message: 'parentId must be a valid id'})
+  parentId?: string | null;
+
+  @IsOptional()
   @IsObject({message: 'fields must be an object'})
   fields?: Record<string, any>;
 }

@@ -12,7 +12,16 @@ function createService() {
     getUrl: jest.fn().mockResolvedValue('signed-url'),
   } as any;
 
-  return {service: new EntriesService(db, storage), db, client, storage};
+  const nesting = {
+      lockWorld: jest.fn().mockResolvedValue(undefined),
+      assertParent: jest.fn().mockResolvedValue(undefined),
+      brokenLinks: jest.fn().mockResolvedValue([]),
+      unlinkOrThrow: jest.fn().mockResolvedValue(0),
+      promoteChildren: jest.fn().mockResolvedValue(undefined),
+      parentOptions: jest.fn().mockResolvedValue([]),
+  } as any;
+
+  return {service: new EntriesService(db, storage, nesting), db, client, storage, nesting};
 }
 
 describe('EntriesService', () => {
@@ -50,7 +59,7 @@ describe('EntriesService', () => {
         .mockResolvedValueOnce({rows: [{name: 'Old', type_id: null, fields: {}, version: 1}]})
         .mockResolvedValueOnce({rows: [{name: 'New'}]})
         .mockResolvedValueOnce({rows: []});
-      db.query.mockResolvedValueOnce({rows: [{id: 'e1', name: 'New', version: 2}]}).mockResolvedValueOnce({rows: []});
+      db.query.mockResolvedValueOnce({rows: [{id: 'e1', name: 'New', version: 2}]}).mockResolvedValueOnce({rows: []}).mockResolvedValueOnce({rows: []});
 
       const result = await service.update('w1', 'e1', 'u1', {version: 1, name: 'New'});
 
@@ -106,7 +115,7 @@ describe('EntriesService', () => {
         .mockResolvedValueOnce({rows: [{id: 'e1', name: 'Aria'}]})
         .mockResolvedValueOnce({rows: [{position: 0}, {position: 2}]})
         .mockResolvedValue({rows: []});
-      db.query.mockResolvedValueOnce({rows: [{id: 'e1'}]}).mockResolvedValueOnce({rows: []});
+      db.query.mockResolvedValueOnce({rows: [{id: 'e1'}]}).mockResolvedValueOnce({rows: []}).mockResolvedValueOnce({rows: []});
 
       await service.addImage('w1', 'e1', 'u1', {buffer: PNG_BYTES} as any);
 

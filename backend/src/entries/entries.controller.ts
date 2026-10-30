@@ -18,6 +18,13 @@ export class EntriesController {
     return this.entries.list(id, typeId);
   }
 
+  @Get('parent-options')
+  @WorldRole('editor')
+  @UseGuards(JwtAuthGuard, WorldRoleGuard)
+  parentOptions(@Param('id') id: string, @Query('typeId') typeId?: string, @Query('entryId') entryId?: string) {
+    return this.entries.parentOptions(id, typeId, entryId);
+  }
+
   @Post()
   @WorldRole('editor')
   @UseGuards(JwtAuthGuard, WorldRoleGuard)

@@ -10,6 +10,7 @@ import { EntriesModule } from './entries/entries.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { StorageModule } from './storage/storage.module';
 import { DatabaseModule } from './database/database.module';
+import { NestingModule } from './nesting/nesting.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { DatabaseModule } from './database/database.module';
     }),
     DatabaseModule,
     StorageModule,
+    NestingModule,
     AuthModule,
     WorldsModule,
     EntryTypesModule,

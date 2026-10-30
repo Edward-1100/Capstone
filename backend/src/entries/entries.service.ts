@@ -5,6 +5,7 @@ import { PoolClient } from 'pg';
 import { detectImageType } from '../common/utils/image-type';
 import { DatabaseService } from '../database/database.service';
 import { applyFieldValues } from '../entry-types/field-values';
+import { NestingService } from '../nesting/nesting.service';
 import { StorageService } from '../storage/storage.service';
 import { CreateEntryDto } from './dto/create-entry.dto';
 import { UpdateEntryDto } from './dto/update-entry.dto';
@@ -13,7 +14,7 @@ const MAX_IMAGES = 5;
 
 @Injectable()
 export class EntriesService {
-  constructor(private readonly db: DatabaseService, private readonly storage: StorageService) {}
+  constructor(private readonly db: DatabaseService, private readonly storage: StorageService, private readonly nesting: NestingService) {}
 
   private rethrow(err: any): never {
     if (err.code === '23503') {
@@ -102,7 +103,7 @@ export class EntriesService {
 
   async findOne(worldId: string, entryId: string) {
     const result = await this.db.query(
-      `SELECT e.id, e.type_id AS "typeId", e.name, e.description, e.version, e.fields,
+      `SELECT e.id, e.type_id AS "typeId", e.parent_id AS "parentId", e.name, e.description, e.version, e.fields,
               e.created_at AS "createdAt", e.updated_at AS "updatedAt",
               t.name AS "typeName"
        FROM active_entries e
@@ -124,8 +125,17 @@ export class EntriesService {
     const typeFields = entry.typeId
       ? await this.db.query('SELECT id, name, field_type AS "fieldType", required, position, config FROM type_fields WHERE type_id = $1 ORDER BY position, created_at', [entry.typeId])
       : null;
+    const parent = entry.parentId
+      ? await this.db.query('SELECT id, name FROM active_entries WHERE id = $1 AND world_id = $2', [entry.parentId, worldId])
+      : null;
+    const children = await this.db.query('SELECT id, name FROM active_entries WHERE parent_id = $1 AND world_id = $2 ORDER BY lower(name)', [entryId, worldId]);
 
-    return Object.assign({}, entry, {images: withUrls, typeFields: typeFields ? typeFields.rows : []});
+    return Object.assign({}, entry, {
+      images: withUrls,
+      typeFields: typeFields ? typeFields.rows : [],
+      parent: parent && parent.rows[0] ? parent.rows[0] : null,
+      children: children.rows,
+    });
   }
 
   async create(worldId: string, userId: string, dto: CreateEntryDto) {
@@ -133,11 +143,16 @@ export class EntriesService {
       const id = await this.db.transaction(async (client) => {
         const definitions = await this.loadFields(client, worldId, dto.typeId ?? null);
         const fields = applyFieldValues(definitions, {}, dto.fields ?? {});
+
+        if (dto.parentId) {
+          await this.nesting.assertParent(client, worldId, null, dto.typeId ?? null, dto.parentId);
+        }
+
         const result = await client.query(
-          `INSERT INTO entries (world_id, type_id, name, description, created_by, fields)
-           VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+          `INSERT INTO entries (world_id, type_id, name, description, created_by, fields, parent_id)
+           VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7)
            RETURNING id`,
-          [worldId, dto.typeId ?? null, dto.name.trim(), dto.description ?? '', userId, JSON.stringify(fields)],
+          [worldId, dto.typeId ?? null, dto.name.trim(), dto.description ?? '', userId, JSON.stringify(fields), dto.parentId ?? null],
         );
         const entryId = result.rows[0].id;
 
@@ -156,7 +171,7 @@ export class EntriesService {
     try {
       await this.db.transaction(async (client) => {
         const current = await client.query(
-          'SELECT name, type_id, fields, version FROM entries WHERE id = $1 AND world_id = $2 AND deleted_at IS NULL',
+          'SELECT name, type_id, parent_id, fields, version FROM entries WHERE id = $1 AND world_id = $2 AND deleted_at IS NULL',
           [entryId, worldId],
         );
         const entry = current.rows[0];
@@ -169,10 +184,17 @@ export class EntriesService {
           throw new ConflictException('Entry was changed by someone else');
         }
 
+        const typeId = dto.typeId !== undefined ? dto.typeId : entry.type_id;
+        const typeChanged = dto.typeId !== undefined && dto.typeId !== entry.type_id;
+
+        if (dto.parentId && dto.parentId !== entry.parent_id) {
+          await this.nesting.assertParent(client, worldId, entryId, typeId, dto.parentId);
+        }
+
         let fields = entry.fields;
 
         if (dto.fields !== undefined) {
-          const definitions = await this.loadFields(client, worldId, dto.typeId !== undefined ? dto.typeId : entry.type_id);
+          const definitions = await this.loadFields(client, worldId, typeId);
 
           fields = applyFieldValues(definitions, entry.fields, dto.fields);
         }
@@ -183,15 +205,22 @@ export class EntriesService {
                description = COALESCE($4, description),
                type_id = CASE WHEN $5::boolean THEN $6::uuid ELSE type_id END,
                fields = $8::jsonb,
+               parent_id = CASE WHEN $9::boolean THEN $10::uuid ELSE parent_id END,
                version = version + 1,
                updated_at = now()
            WHERE id = $1 AND world_id = $2 AND version = $7 AND deleted_at IS NULL
            RETURNING name`,
-          [entryId, worldId, dto.name?.trim() ?? null, dto.description ?? null, dto.typeId !== undefined, dto.typeId ?? null, dto.version, JSON.stringify(fields)],
+          [entryId, worldId, dto.name?.trim() ?? null, dto.description ?? null, dto.typeId !== undefined, dto.typeId ?? null, dto.version, JSON.stringify(fields), dto.parentId !== undefined, dto.parentId ?? null],
         );
 
         if (!result.rows[0]) {
           throw new ConflictException('Entry was changed by someone else');
+        }
+
+        if (typeChanged) {
+          const links = await this.nesting.brokenLinks(client, worldId, [entryId]);
+
+          await this.nesting.unlinkOrThrow(client, worldId, links, dto.confirmUnlink === true, entryId);
         }
 
         await this.log(client, worldId, entryId, 'updated', result.rows[0].name, userId);
@@ -205,11 +234,13 @@ export class EntriesService {
 
   remove(worldId: string, entryId: string, userId: string) {
     return this.db.transaction(async (client) => {
+      await this.nesting.lockWorld(client, worldId);
+
       const result = await client.query(
         `UPDATE entries
          SET deleted_at = now(), deleted_by = $3, purge_after = now() + interval '7 days'
          WHERE id = $1 AND world_id = $2 AND deleted_at IS NULL
-         RETURNING name`,
+         RETURNING name, parent_id AS "parentId"`,
         [entryId, worldId, userId],
       );
       const entry = result.rows[0];
@@ -218,13 +249,26 @@ export class EntriesService {
         throw new NotFoundException('Entry not found');
       }
 
+      await this.nesting.promoteChildren(client, worldId, entryId, entry.parentId ?? null);
       await this.log(client, worldId, entryId, 'deleted', entry.name, userId);
 
       return {deleted: true};
     });
   }
 
-  async addImage(worldId: string, entryId: string, userId: string, file: Express.Multer.File | undefined) {
+  async parentOptions(worldId: string, typeId?: string, entryId?: string) {
+    if (!typeId || !isUUID(typeId)) {
+      throw new BadRequestException('typeId must be a valid id');
+    }
+
+    if (entryId && !isUUID(entryId)) {
+      throw new BadRequestException('entryId must be a valid id');
+    }
+
+    return this.nesting.parentOptions(this.db, worldId, typeId, entryId);
+  }
+
+    async addImage(worldId: string, entryId: string, userId: string, file: Express.Multer.File | undefined) {
     const type = this.checkImage(file);
     const key = `worlds/${worldId}/entries/${entryId}/${randomUUID()}.${type.ext}`;
     const state = {uploaded: false};

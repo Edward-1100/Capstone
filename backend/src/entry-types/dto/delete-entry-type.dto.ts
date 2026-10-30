@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class DeleteEntryTypeDto {
   @IsString()
@@ -7,4 +7,8 @@ export class DeleteEntryTypeDto {
   @IsOptional()
   @IsUUID()
   moveToTypeId?: string;
+
+  @IsOptional()
+  @IsBoolean({message: 'confirmUnlink must be true or false'})
+  confirmUnlink?: boolean;
 }
