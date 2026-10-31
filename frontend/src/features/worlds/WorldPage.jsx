@@ -61,6 +61,7 @@ export default function WorldPage() {
           <li><Link to={`/worlds/${world.id}/entries`}>Entries</Link></li>
           <li><Link to={`/worlds/${world.id}/types`}>Entry types</Link></li>
           <li><Link to={`/worlds/${world.id}/relationship-types`}>Relationship types</Link></li>
+          <li><Link to={`/worlds/${world.id}/tags`}>Tags</Link></li>
           {world.role === 'owner' && <li><Link to={`/worlds/${world.id}/edit`}>Edit world</Link></li>}
           {!user && <li><Link to="/login">Log in</Link></li>}
         </ul>

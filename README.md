@@ -112,3 +112,9 @@ frontend: React
 - Each side of a relationship type can allow for any entry type or only chosen ones.
 - An entry can not have a relationship with itself, and the same relationship can not be added twice
 - If an entry's type changes and a relationship no longer matches, it is kept and listed under Needs attention on the dashboard
+
+## Tags
+
+- An entry can have any number of tags
+- Tag changes show under recently modified on the dashboard but do not change the entry's version
+- Deleting a tag asks for its name and shows how many entries have it
