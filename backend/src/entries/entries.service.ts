@@ -268,7 +268,7 @@ export class EntriesService {
     return this.nesting.parentOptions(this.db, worldId, typeId, entryId);
   }
 
-    async addImage(worldId: string, entryId: string, userId: string, file: Express.Multer.File | undefined) {
+  async addImage(worldId: string, entryId: string, userId: string, file: Express.Multer.File | undefined) {
     const type = this.checkImage(file);
     const key = `worlds/${worldId}/entries/${entryId}/${randomUUID()}.${type.ext}`;
     const state = {uploaded: false};

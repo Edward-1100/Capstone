@@ -13,12 +13,12 @@ function createService() {
   } as any;
 
   const nesting = {
-      lockWorld: jest.fn().mockResolvedValue(undefined),
-      assertParent: jest.fn().mockResolvedValue(undefined),
-      brokenLinks: jest.fn().mockResolvedValue([]),
-      unlinkOrThrow: jest.fn().mockResolvedValue(0),
-      promoteChildren: jest.fn().mockResolvedValue(undefined),
-      parentOptions: jest.fn().mockResolvedValue([]),
+    lockWorld: jest.fn().mockResolvedValue(undefined),
+    assertParent: jest.fn().mockResolvedValue(undefined),
+    brokenLinks: jest.fn().mockResolvedValue([]),
+    unlinkOrThrow: jest.fn().mockResolvedValue(0),
+    promoteChildren: jest.fn().mockResolvedValue(undefined),
+    parentOptions: jest.fn().mockResolvedValue([]),
   } as any;
 
   return {service: new EntriesService(db, storage, nesting), db, client, storage, nesting};

@@ -7,6 +7,7 @@ import NewWorldPage from './features/worlds/NewWorldPage';
 import WorldPage from './features/worlds/WorldPage';
 import EditWorldPage from './features/worlds/EditWorldPage';
 import EntryTypesPage from './features/entry-types/EntryTypesPage';
+import RelationshipTypesPage from './features/relationship-types/RelationshipTypesPage';
 import EntriesPage from './features/entries/EntriesPage';
 import NewEntryPage from './features/entries/NewEntryPage';
 import EntryPage from './features/entries/EntryPage';
@@ -28,6 +29,8 @@ export default function App() {
       <Route path="/worlds/:id/edit" element={<ProtectedRoute><EditWorldPage/></ProtectedRoute>}/>
 
       <Route path="/worlds/:id/types" element={<EntryTypesPage/>}/>
+
+      <Route path="/worlds/:id/relationship-types" element={<RelationshipTypesPage/>}/>
 
       <Route path="/worlds/:id/entries" element={<EntriesPage/>}/>
 

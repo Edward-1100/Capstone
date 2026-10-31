@@ -105,3 +105,10 @@ frontend: React
 - Deleting a type with entries asks for confirmation and lets the user move the entries to another type or leave them without a type
 - Each entry has a version number. Saving an old version is rejected with a conflict, so one user's edit can't silently overwrite another's
 - Deleting an entry keeps its data and records it in the activity log. Its images are kept for 7 days
+
+## Relationships
+
+- Relationship types have a name and a description. Every new world starts with Friend, Enemy, Member of, Located in, and Occurred in, which can be edited or deleted like custom types
+- Each side of a relationship type can allow for any entry type or only chosen ones.
+- An entry can not have a relationship with itself, and the same relationship can not be added twice
+- If an entry's type changes and a relationship no longer matches, it is kept and listed under Needs attention on the dashboard

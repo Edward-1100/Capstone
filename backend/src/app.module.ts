@@ -11,6 +11,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { StorageModule } from './storage/storage.module';
 import { DatabaseModule } from './database/database.module';
 import { NestingModule } from './nesting/nesting.module';
+import { RelationshipsModule } from './relationships/relationships.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { NestingModule } from './nesting/nesting.module';
     WorldsModule,
     EntryTypesModule,
     EntriesModule,
+    RelationshipsModule,
     DashboardModule,
   ],
   controllers: [AppController],

@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
+import { RelationshipsService } from '../relationships/relationships.service';
 
 @Injectable()
 export class DashboardService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService, private readonly relationships: RelationshipsService) {}
 
   private async recent(worldId: string, action: string) {
     const result = await this.db.query(
@@ -52,6 +53,7 @@ export class DashboardService {
        LIMIT 50`,
       [worldId],
     );
+    const invalidRelationships = await this.relationships.findInvalid(this.db, worldId, undefined, 50);
     const recentlyCreated = await this.recent(worldId, 'created');
     const recentlyModified = await this.recent(worldId, 'updated');
     const recentlyDeleted = await this.recent(worldId, 'deleted');
@@ -64,6 +66,7 @@ export class DashboardService {
       untyped: untyped.rows,
       missingRequired: missingRequired.rows,
       outOfRange: outOfRange.rows,
+      invalidRelationships,
     };
   }
 }

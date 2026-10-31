@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { detectImageType } from '../common/utils/image-type';
 import { BUILT_IN_TYPES } from '../entry-types/built-in-types';
+import { seedRelationshipTypes } from '../relationships/built-in-relationship-types';
 import { DatabaseService } from '../database/database.service';
 import { StorageService } from '../storage/storage.service';
 import { CreateWorldDto } from './dto/create-world.dto';
@@ -34,12 +35,18 @@ export class WorldsService {
         [world.id, userId, 'owner'],
       );
 
+      const typeIds: Record<string, string> = {};
+
       for (const type of BUILT_IN_TYPES) {
-        await client.query(
-          'INSERT INTO entry_types (world_id, name, nestable) VALUES ($1, $2, $3)',
+        const created = await client.query(
+          'INSERT INTO entry_types (world_id, name, nestable) VALUES ($1, $2, $3) RETURNING id',
           [world.id, type.name, type.nestable],
         );
+
+        typeIds[type.name] = created.rows[0].id;
       }
+
+      await seedRelationshipTypes(client, world.id, typeIds);
 
       return Object.assign({}, world, {role: 'owner', thumbnailUrl: null});
     });

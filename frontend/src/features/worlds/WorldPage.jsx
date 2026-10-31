@@ -60,11 +60,12 @@ export default function WorldPage() {
           <li>Dashboard</li>
           <li><Link to={`/worlds/${world.id}/entries`}>Entries</Link></li>
           <li><Link to={`/worlds/${world.id}/types`}>Entry types</Link></li>
+          <li><Link to={`/worlds/${world.id}/relationship-types`}>Relationship types</Link></li>
           {world.role === 'owner' && <li><Link to={`/worlds/${world.id}/edit`}>Edit world</Link></li>}
           {!user && <li><Link to="/login">Log in</Link></li>}
         </ul>
 
-        <p>Coming soon: relationships, maps, graph, timeline</p>
+        <p>Coming soon: maps, graph, timeline</p>
       </nav>
 
       <section>
@@ -93,7 +94,7 @@ export default function WorldPage() {
       <section>
         <h2>Needs attention</h2>
 
-        {dashboard.untyped.length === 0 && dashboard.missingRequired.length === 0 && dashboard.outOfRange.length === 0 && <p>Nothing needs attention</p>}
+        {dashboard.untyped.length === 0 && dashboard.missingRequired.length === 0 && dashboard.outOfRange.length === 0 && dashboard.invalidRelationships.length === 0 && <p>Nothing needs attention</p>}
 
         {dashboard.untyped.length > 0 && <p>Entries without a type:</p>}
 
@@ -111,6 +112,16 @@ export default function WorldPage() {
 
         <ul>
           {dashboard.outOfRange.map((item) => <li key={`${item.entryId}-${item.fieldName}`}><Link to={`/worlds/${world.id}/entries/${item.entryId}`}>{item.name}</Link>, {item.fieldName}</li>)}
+        </ul>
+
+        {dashboard.invalidRelationships.length > 0 && <p>Relationships that no longer match their type:</p>}
+
+        <ul>
+          {dashboard.invalidRelationships.map((item) => (
+            <li key={item.id}>
+              <Link to={`/worlds/${world.id}/entries/${item.fromId}`}>{item.fromName}</Link> {item.typeName} <Link to={`/worlds/${world.id}/entries/${item.toId}`}>{item.toName}</Link>
+            </li>
+          ))}
         </ul>
       </section>
     </div>
