@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { listEntriesRequest } from '../../api/entries';
 import { listEntryTypesRequest } from '../../api/entryTypes';
 import { getWorldRequest } from '../../api/worlds';
+import Page from '../../components/Page';
 
 export default function EntriesPage() {
   const {id} = useParams();
@@ -27,7 +28,10 @@ export default function EntriesPage() {
 
   useEffect(() => {
     listEntriesRequest(id, typeFilter)
-      .then(setEntries)
+      .then((data) => {
+        setEntries(data);
+        setError('');
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [id, typeFilter]);
@@ -39,43 +43,45 @@ export default function EntriesPage() {
   }
 
   if (!world) {
-    return <p>Loading</p>;
+    return <Page><p>Loading</p></Page>;
   }
 
   const canEdit = world.role === 'owner' || world.role === 'editor';
   const newLink = typeFilter && typeFilter !== 'none' ? `/worlds/${id}/entries/new?type=${typeFilter}` : `/worlds/${id}/entries/new`;
 
   return (
-    <div>
-      <p><Link to={`/worlds/${id}`}>Back to {world.name}</Link></p>
+    <Page size="medium" crumbs={[{to: `/worlds/${id}`, label: world.name}, {label: 'Entries'}]}>
+      <div className="panel">
+        <div className="toolbar">
+          <div className="line">
+            <label htmlFor="typeFilter">Show</label>
 
-      <h1>Entries</h1>
+            <select id="typeFilter" value={typeFilter} onChange={handleFilterChange}>
+              <option value="">All entries</option>
+              <option value="none">No type</option>
+              {types.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
+            </select>
+          </div>
 
-      <div>
-        <label htmlFor="typeFilter">Show</label>
+          {canEdit && <Link className="button" to={newLink}>New entry</Link>}
+        </div>
 
-        <select id="typeFilter" value={typeFilter} onChange={handleFilterChange}>
-          <option value="">All entries</option>
-          <option value="none">No type</option>
-          {types.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
-        </select>
+        {loading && <p>Loading</p>}
+
+        {error && <p role="alert">{error}</p>}
+
+        {!loading && !error && entries.length === 0 && <p className="muted">No entries yet</p>}
+
+        <ul className="entry-list">
+          {entries.map((entry) => (
+            <li key={entry.id}>
+              <Link to={`/worlds/${id}/entries/${entry.id}`}>{entry.name}</Link>
+
+              <span className="muted">{entry.typeName || 'no type'}</span>
+            </li>
+          ))}
+        </ul>
       </div>
-
-      {canEdit && <p><Link to={newLink}>New entry</Link></p>}
-
-      {loading && <p>Loading</p>}
-
-      {error && <p role="alert">{error}</p>}
-
-      {!loading && entries.length === 0 && <p>No entries yet</p>}
-
-      <ul>
-        {entries.map((entry) => (
-          <li key={entry.id}>
-            <Link to={`/worlds/${id}/entries/${entry.id}`}>{entry.name}</Link> ({entry.typeName || 'no type'})
-          </li>
-        ))}
-      </ul>
-    </div>
+    </Page>
   );
 }

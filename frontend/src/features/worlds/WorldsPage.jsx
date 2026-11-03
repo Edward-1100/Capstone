@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { listWorldsRequest } from '../../api/worlds';
+import Page from '../../components/Page';
 import { useAuth } from '../../context/AuthContext';
 
 export default function WorldsPage() {
@@ -24,32 +25,44 @@ export default function WorldsPage() {
   }
 
   return (
-    <div>
-      <h1>Worldbuilder</h1>
+    <Page size="medium">
+      <div className="panel">
+        <div className="toolbar">
+          <h1 className="title">Worldbuilder</h1>
 
-      <p>Logged in as {user.username} ({user.email})</p>
+          <div className="line">
+            <span className="muted">Logged in as {user.username} ({user.email})</span>
 
-      <button onClick={handleLogout}>Log out</button>
+            <button type="button" onClick={handleLogout}>Log out</button>
+          </div>
+        </div>
 
-      <h2>Your worlds</h2>
+        <div>
+          <div className="line">
+            <h2>Your worlds</h2>
 
-      <p><Link to="/worlds/new">New world</Link></p>
+            <Link className="button" to="/worlds/new">New world</Link>
+          </div>
 
-      {loading && <p>Loading</p>}
+          {loading && <p>Loading</p>}
 
-      {error && <p role="alert">{error}</p>}
+          {error && <p role="alert">{error}</p>}
 
-      {!loading && worlds.length === 0 && <p>You have no worlds yet</p>}
+          {!loading && worlds.length === 0 && <p className="muted">You have no worlds yet</p>}
 
-      <ul>
-        {worlds.map((world) => (
-          <li key={world.id}>
-            {world.thumbnailUrl && <img src={world.thumbnailUrl} alt="" width="60"/>}
+          <ul className="worlds">
+            {worlds.map((world) => (
+              <li key={world.id}>
+                {world.thumbnailUrl ? <img className="thumb" src={world.thumbnailUrl} alt=""/> : <span className="thumb"></span>}
 
-            <Link to={`/worlds/${world.id}`}>{world.name}</Link> ({world.visibility}, {world.role})
-          </li>
-        ))}
-      </ul>
-    </div>
+                <Link to={`/worlds/${world.id}`}>{world.name}</Link>
+
+                <span className="muted">{world.visibility}, {world.role}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </Page>
   );
 }

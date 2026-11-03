@@ -7,8 +7,8 @@ export default function FieldForm({initial, editing, submitLabel, onSubmit, onCa
   const [name, setName] = useState(initial.name);
   const [fieldType, setFieldType] = useState(initial.fieldType);
   const [required, setRequired] = useState(initial.required);
-  const [trueLabel, setTrueLabel] = useState(config.trueLabel || 'Yes');
-  const [falseLabel, setFalseLabel] = useState(config.falseLabel || 'No');
+  const [trueLabel, setTrueLabel] = useState(config.trueLabel || 'True');
+  const [falseLabel, setFalseLabel] = useState(config.falseLabel || 'False');
   const [min, setMin] = useState(config.min === undefined ? '1' : String(config.min));
   const [max, setMax] = useState(config.max === undefined ? '10' : String(config.max));
   const [labels, setLabels] = useState(config.labels || {});
@@ -96,10 +96,10 @@ export default function FieldForm({initial, editing, submitLabel, onSubmit, onCa
 
       {fieldType === 'boolean' && (
         <div>
-          <label htmlFor="trueLabel">Name for yes</label>
+          <label htmlFor="trueLabel">Name for true</label>
           <input id="trueLabel" type="text" value={trueLabel} onChange={(e) => setTrueLabel(e.target.value)} maxLength={50} required/>
 
-          <label htmlFor="falseLabel">Name for no</label>
+          <label htmlFor="falseLabel">Name for false</label>
           <input id="falseLabel" type="text" value={falseLabel} onChange={(e) => setFalseLabel(e.target.value)} maxLength={50} required/>
         </div>
       )}
@@ -141,12 +141,14 @@ export default function FieldForm({initial, editing, submitLabel, onSubmit, onCa
       {pendingClear && (
         <div>
           <p role="alert">{pendingClear} entries use options you removed. They will be cleared from those entries.</p>
-          <button type="button" onClick={() => submit(true)} disabled={submitting}>Remove and save</button>
+          <button type="button" className="danger" onClick={() => submit(true)} disabled={submitting}>Remove and save</button>
         </div>
       )}
 
-      <button type="submit" disabled={submitting}>{submitLabel}</button>
-      <button type="button" onClick={onCancel}>Cancel</button>
+      <div className="actions">
+        <button type="submit" disabled={submitting}>{submitLabel}</button>
+        <button type="button" onClick={onCancel}>Cancel</button>
+      </div>
     </form>
   );
 }

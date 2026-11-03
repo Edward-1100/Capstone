@@ -9,6 +9,7 @@ export default function EntryRelationships({worldId, entryId, entryTypeId, canEd
   const [relationships, setRelationships] = useState(null);
   const [types, setTypes] = useState([]);
   const [entries, setEntries] = useState([]);
+  const [adding, setAdding] = useState(false);
   const [typeId, setTypeId] = useState('');
   const [direction, setDirection] = useState('out');
   const [otherId, setOtherId] = useState('');
@@ -56,6 +57,13 @@ export default function EntryRelationships({worldId, entryId, entryTypeId, canEd
     setOtherId('');
   }
 
+  function closeForm() {
+    setAdding(false);
+    setTypeId('');
+    setOtherId('');
+    setError('');
+  }
+
   async function reload() {
     setRelationships(await listEntryRelationshipsRequest(worldId, entryId));
   }
@@ -68,7 +76,7 @@ export default function EntryRelationships({worldId, entryId, entryTypeId, canEd
 
     try {
       await createRelationshipRequest(worldId, {typeId, fromEntryId: reversed ? otherId : entryId, toEntryId: reversed ? entryId : otherId});
-      setOtherId('');
+      closeForm();
       await reload();
     } catch (err) {
       setError(err.message);
@@ -92,24 +100,30 @@ export default function EntryRelationships({worldId, entryId, entryTypeId, canEd
 
   return (
     <div>
-      <h2>Relationships</h2>
+      <div className="line">
+        <h2>Relationships</h2>
 
-      {relationships.length === 0 && <p>No relationships yet</p>}
+        {canEdit && !adding && <button type="button" onClick={() => setAdding(true)}>Add relationship</button>}
+      </div>
 
-      <ul>
+      {relationships.length === 0 && <p className="muted">No relationships yet</p>}
+
+      <ul className="rows">
         {relationships.map((item) => (
           <li key={item.id}>
-            {item.direction === 'out' || item.symmetric ? item.typeName : `${item.typeName} (incoming)`}: <Link to={`/worlds/${worldId}/entries/${item.otherId}`}>{item.otherName}</Link> ({item.otherTypeName || 'no type'})
+            <span className="kind">{item.direction === 'out' || item.symmetric ? item.typeName : `${item.typeName} (incoming)`}</span>
 
-            {canEdit && <button onClick={() => handleRemove(item.id)}>Remove</button>}
+            <span className="other"><Link to={`/worlds/${worldId}/entries/${item.otherId}`}>{item.otherName}</Link> <span>{item.otherTypeName || 'no type'}</span></span>
+
+            {canEdit && <span className="row-actions"><button type="button" onClick={() => handleRemove(item.id)}>Remove</button></span>}
           </li>
         ))}
       </ul>
 
       {error && <p role="alert">{error}</p>}
 
-      {canEdit && (
-        <form onSubmit={handleAdd}>
+      {adding && (
+        <form className="add-form" onSubmit={handleAdd}>
           <div>
             <label htmlFor="relType">Relationship type</label>
 
@@ -138,12 +152,15 @@ export default function EntryRelationships({worldId, entryId, entryTypeId, canEd
                 <option value="">Choose an entry</option>
                 {candidates.map((other) => <option key={other.id} value={other.id}>{other.name} ({other.typeName || 'no type'})</option>)}
               </select>
+
+              {candidates.length === 0 && <p className="muted">No entries can be connected this way</p>}
             </div>
           )}
 
-          {type && candidates.length === 0 && <p>No entries can be connected this way</p>}
-
-          <button type="submit" disabled={!type || !otherId}>Add relationship</button>
+          <div className="actions">
+            <button type="submit" disabled={!type || !otherId}>Add relationship</button>
+            <button type="button" onClick={closeForm}>Cancel</button>
+          </div>
         </form>
       )}
     </div>

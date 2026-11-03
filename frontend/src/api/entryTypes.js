@@ -12,8 +12,8 @@ export function updateEntryTypeRequest(worldId, typeId, name) {
   return apiFetch(`/worlds/${worldId}/entry-types/${typeId}`, {method: 'PATCH', body: JSON.stringify({name})});
 }
 
-export function deleteEntryTypeRequest(worldId, typeId, confirmName, moveToTypeId) {
-  return apiFetch(`/worlds/${worldId}/entry-types/${typeId}`, {method: 'DELETE', body: JSON.stringify({confirmName, moveToTypeId})});
+export function deleteEntryTypeRequest(worldId, typeId, confirmName, moveToTypeId, confirmUnlink) {
+  return apiFetch(`/worlds/${worldId}/entry-types/${typeId}`, {method: 'DELETE', body: JSON.stringify({confirmName, moveToTypeId, confirmUnlink})});
 }
 
 export function createFieldRequest(worldId, typeId, data) {

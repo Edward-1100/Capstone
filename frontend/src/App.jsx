@@ -12,7 +12,6 @@ import TagsPage from './features/tags/TagsPage';
 import EntriesPage from './features/entries/EntriesPage';
 import NewEntryPage from './features/entries/NewEntryPage';
 import EntryPage from './features/entries/EntryPage';
-import EditEntryPage from './features/entries/EditEntryPage';
 
 export default function App() {
   return (
@@ -40,8 +39,6 @@ export default function App() {
       <Route path="/worlds/:id/entries/new" element={<ProtectedRoute><NewEntryPage/></ProtectedRoute>}/>
 
       <Route path="/worlds/:id/entries/:entryId" element={<EntryPage/>}/>
-
-      <Route path="/worlds/:id/entries/:entryId/edit" element={<ProtectedRoute><EditEntryPage/></ProtectedRoute>}/>
 
       <Route path="*" element={<Navigate to="/" replace/>}/>
     </Routes>

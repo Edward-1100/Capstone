@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { createFieldRequest, deleteFieldRequest, updateFieldRequest } from '../api/entryTypes';
+import { countLabel } from '../utils/text';
 import { describeField } from '../utils/fields';
 import FieldForm from './FieldForm';
 
@@ -45,47 +46,50 @@ export default function TypeFields({worldId, type, canEdit, onChanged}) {
 
   return (
     <div>
-      <h3>Fields for {type.name}</h3>
+      {type.fields.length === 0 && <p className="muted">No fields yet</p>}
 
-      {type.fields.length === 0 && <p>No fields yet</p>}
-
-      <ul>
+      <ul className="rows">
         {type.fields.map((field) => (
-          <li key={field.id}>
-            {editingId !== field.id && <span>{field.name}: {describeField(field)}{field.required && ', required'}, {field.usageCount} entries have a value</span>}
+          <li key={field.id} className={editingId === field.id ? 'open' : ''}>
+            {editingId !== field.id && (
+              <>
+                <span className="kind">{field.name}</span>
+
+                <span className="other">{describeField(field)}{field.required && ', required'}, {countLabel(field.usageCount, 'entry has', 'entries have')} a value</span>
+
+                {canEdit && (
+                  <span className="row-actions">
+                    <button type="button" onClick={() => setEditingId(field.id)}>Edit</button>
+                    <button type="button" className="danger" onClick={() => startDelete(field)}>Delete</button>
+                  </span>
+                )}
+              </>
+            )}
 
             {editingId === field.id && <FieldForm initial={field} editing submitLabel="Save field" onSubmit={(data) => handleUpdate(field.id, data)} onCancel={() => setEditingId(null)}/>}
-
-            {canEdit && editingId !== field.id && <button onClick={() => setEditingId(field.id)}>Edit field</button>}
-
-            {canEdit && editingId !== field.id && <button onClick={() => startDelete(field)}>Delete field</button>}
           </li>
         ))}
       </ul>
 
-      {canEdit && !adding && type.fields.length < MAX_FIELDS && <button onClick={() => setAdding(true)}>Add field</button>}
+      {canEdit && !adding && type.fields.length < MAX_FIELDS && <button type="button" onClick={() => setAdding(true)}>Add field</button>}
 
-      {canEdit && type.fields.length >= MAX_FIELDS && <p>A type can have up to {MAX_FIELDS} fields</p>}
+      {canEdit && type.fields.length >= MAX_FIELDS && <p className="muted">A type can have up to {MAX_FIELDS} fields</p>}
 
       {adding && <FieldForm initial={{name: '', fieldType: 'text', required: false, config: {}}} submitLabel="Add field" onSubmit={handleCreate} onCancel={() => setAdding(false)}/>}
 
       {deletingField && (
-        <section>
-          <h4>Delete {deletingField.name}</h4>
+        <form className="confirm" onSubmit={handleDelete}>
+          <p>{countLabel(deletingField.usageCount, 'entry has', 'entries have')} a value for {deletingField.name}. It will be removed from them.</p>
 
-          <p>{deletingField.usageCount} entries have a value for this field. It will be removed from them.</p>
+          <div className="inline-form">
+            <input type="text" aria-label="Type the field name to confirm" placeholder={`Type ${deletingField.name} to confirm`} value={confirmName} onChange={(e) => setConfirmName(e.target.value)}/>
 
-          <form onSubmit={handleDelete}>
-            <p>Type the field's name ({deletingField.name}) to confirm.</p>
-
-            <input type="text" value={confirmName} onChange={(e) => setConfirmName(e.target.value)}/>
-
-            {error && <p role="alert">{error}</p>}
-
-            <button type="submit" disabled={confirmName !== deletingField.name}>Delete field</button>
+            <button type="submit" className="danger" disabled={confirmName !== deletingField.name}>Delete field</button>
             <button type="button" onClick={() => setDeletingField(null)}>Cancel</button>
-          </form>
-        </section>
+          </div>
+
+          {error && <p role="alert">{error}</p>}
+        </form>
       )}
     </div>
   );

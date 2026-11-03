@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import Page from '../../components/Page';
 import { useAuth } from '../../context/AuthContext';
 
 export default function LoginPage() {
@@ -27,26 +28,30 @@ export default function LoginPage() {
   }
 
   return (
-    <div>
-      <h1>Log in</h1>
+    <Page size="narrow">
+      <div className="panel">
+        <h1 className="title">Log in</h1>
 
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="email">Email</label>
-          <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required/>
-        </div>
+        <form onSubmit={handleSubmit}>
+          <div>
+            <label htmlFor="email">Email</label>
+            <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required/>
+          </div>
 
-        <div>
-          <label htmlFor="password">Password</label>
-          <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required/>
-        </div>
+          <div>
+            <label htmlFor="password">Password</label>
+            <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required/>
+          </div>
 
-        {error && <p role="alert">{error}</p>}
+          {error && <p role="alert">{error}</p>}
 
-        <button type="submit" disabled={submitting}>Log in</button>
-      </form>
+          <div className="actions">
+            <button type="submit" disabled={submitting}>Log in</button>
+          </div>
+        </form>
 
-      <p>No account? <Link to="/register">Register</Link></p>
-    </div>
+        <p>No account? <Link to="/register">Register</Link></p>
+      </div>
+    </Page>
   );
 }

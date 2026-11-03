@@ -25,8 +25,8 @@ export function normalizeConfig(fieldType: string, config: any, existing?: any) 
   const base = existing ?? {};
 
   if (fieldType === 'boolean') {
-    const trueLabel = cleanLabel(input.trueLabel ?? base.trueLabel ?? 'Yes', 'Option name');
-    const falseLabel = cleanLabel(input.falseLabel ?? base.falseLabel ?? 'No', 'Option name');
+    const trueLabel = cleanLabel(input.trueLabel ?? base.trueLabel ?? 'True', 'Option name');
+    const falseLabel = cleanLabel(input.falseLabel ?? base.falseLabel ?? 'False', 'Option name');
 
     if (trueLabel.toLowerCase() === falseLabel.toLowerCase()) {
       throw new BadRequestException('Option names must be different');

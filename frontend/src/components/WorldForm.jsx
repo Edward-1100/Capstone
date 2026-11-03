@@ -99,7 +99,7 @@ export default function WorldForm({initial, currentThumbnailUrl, submitLabel, on
         <label htmlFor="thumbnail">Thumbnail (PNG, JPEG, or WebP, up to 2 MB)</label>
         <input id="thumbnail" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFileChange}/>
 
-        {shownUrl && <img src={shownUrl} alt="Thumbnail" width="200"/>}
+        {shownUrl && <img className="preview" src={shownUrl} alt="Thumbnail"/>}
 
         {currentThumbnailUrl && !previewUrl && onRemoveThumbnail && <button type="button" onClick={handleRemove}>Remove thumbnail</button>}
       </div>

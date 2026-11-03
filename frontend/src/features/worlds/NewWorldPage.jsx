@@ -1,5 +1,6 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { createWorldRequest, uploadThumbnailRequest } from '../../api/worlds';
+import Page from '../../components/Page';
 import WorldForm from '../../components/WorldForm';
 
 export default function NewWorldPage() {
@@ -22,12 +23,12 @@ export default function NewWorldPage() {
   }
 
   return (
-    <div>
-      <h1>New world</h1>
+    <Page size="medium" crumbs={[{to: '/', label: 'Your worlds'}, {label: 'New world'}]}>
+      <div className="panel">
+        <h1 className="title">New world</h1>
 
-      <WorldForm initial={{name: '', description: '', visibility: 'private'}} submitLabel="Create world" onSubmit={handleCreate}/>
-
-      <p><Link to="/">Back to worlds</Link></p>
-    </div>
+        <WorldForm initial={{name: '', description: '', visibility: 'private'}} submitLabel="Create world" onSubmit={handleCreate}/>
+      </div>
+    </Page>
   );
 }

@@ -47,10 +47,22 @@ describe('RelationshipTypesService', () => {
 
       client.query.mockResolvedValue({rows: [{id: 'rt1'}]});
 
-      await service.create('w1', {name: 'Knows', symmetric: true});
+      await service.create('w1', {name: 'Knows'});
 
       expect(sqlOf(client).some((text: string) => text.includes('INSERT INTO relationship_type_ends'))).toBe(false);
-      expect(client.query.mock.calls[0][1]).toEqual(['w1', 'Knows', '', true, true, true]);
+      expect(client.query.mock.calls[0][1]).toEqual(['w1', 'Knows', '', false, true, true]);
+    });
+
+    it('works out whether the type works both ways from its two sides', async () => {
+      const {service, client} = createService();
+
+      client.query.mockResolvedValue({rows: [{id: 'rt1'}]});
+
+      await service.create('w1', {name: 'Knows'});
+
+      const sync = client.query.mock.calls.find((call: any) => call[0].includes('SET is_symmetric'));
+
+      expect(sync[1]).toEqual(['rt1']);
     });
 
     it('saves the allowed types for a restricted side', async () => {

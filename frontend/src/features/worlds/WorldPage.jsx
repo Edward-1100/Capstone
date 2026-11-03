@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { getDashboardRequest, getWorldRequest } from '../../api/worlds';
+import Page from '../../components/Page';
 import { useAuth } from '../../context/AuthContext';
 
 function RecentList({items, worldId}) {
   if (items.length === 0) {
-    return <p>No entries yet</p>;
+    return <p className="muted">No entries yet</p>;
   }
 
   return (
-    <ul>
+    <ul className="plain">
       {items.map((item) => (
         <li key={item.id}>
           {item.entryId ? <Link to={`/worlds/${worldId}/entries/${item.entryId}`}>{item.name}</Link> : item.name}
@@ -38,93 +39,81 @@ export default function WorldPage() {
   }, [id, navigate]);
 
   if (!world || !dashboard) {
-    return <p>Loading</p>;
+    return <Page><p>Loading</p></Page>;
   }
 
+  const visibility = world.visibility === 'private' ? 'Private' : 'Public';
+  const attention = dashboard.untyped.length + dashboard.missingRequired.length + dashboard.outOfRange.length + dashboard.invalidRelationships.length;
+
   return (
-    <div>
-      {user && <p><Link to="/">Back to worlds</Link></p>}
+    <Page crumbs={user ? [{to: '/', label: 'Your worlds'}, {label: world.name}] : []}>
+      <div className="panel header">
+        {world.thumbnailUrl && <img className="cover" src={world.thumbnailUrl} alt=""/>}
 
-      <h1>{world.name}</h1>
+        <div>
+          <h1 className="title">{world.name}</h1>
 
-      {world.thumbnailUrl && <img src={world.thumbnailUrl} alt="World thumbnail" width="300"/>}
+          <p className="muted">{visibility} world, your role: {world.role}</p>
 
-      <p>{world.visibility} world, your role: {world.role}</p>
+          {world.description && <p className="world-description">{world.description}</p>}
+        </div>
+      </div>
 
-      <p>{world.description}</p>
+      <div className="panel">
+        <nav className="tabs">
+          <span className="current">Dashboard</span>
+          <Link to={`/worlds/${world.id}/entries`}>Entries</Link>
+          <Link to={`/worlds/${world.id}/types`}>Entry types</Link>
+          <Link to={`/worlds/${world.id}/relationship-types`}>Relationship types</Link>
+          <Link to={`/worlds/${world.id}/tags`}>Tags</Link>
+          {world.role === 'owner' && <Link to={`/worlds/${world.id}/edit`}>Edit world</Link>}
+          {!user && <Link to="/login">Log in</Link>}
+          <span className="muted">Maps, graph, timeline: coming soon</span>
+        </nav>
 
-      <nav>
-        <h2>Navigation</h2>
+        <div className="stats">
+          <span>{dashboard.entryCount} {dashboard.entryCount === 1 ? 'entry' : 'entries'}</span>
+          <span>Created {new Date(world.createdAt).toLocaleDateString()}</span>
+          <span>Last updated {new Date(world.updatedAt).toLocaleDateString()}</span>
+        </div>
 
-        <ul>
-          <li>Dashboard</li>
-          <li><Link to={`/worlds/${world.id}/entries`}>Entries</Link></li>
-          <li><Link to={`/worlds/${world.id}/types`}>Entry types</Link></li>
-          <li><Link to={`/worlds/${world.id}/relationship-types`}>Relationship types</Link></li>
-          <li><Link to={`/worlds/${world.id}/tags`}>Tags</Link></li>
-          {world.role === 'owner' && <li><Link to={`/worlds/${world.id}/edit`}>Edit world</Link></li>}
-          {!user && <li><Link to="/login">Log in</Link></li>}
-        </ul>
+        <div className="columns">
+          <div>
+            <h3>Recently created</h3>
+            <RecentList items={dashboard.recentlyCreated} worldId={world.id}/>
+          </div>
 
-        <p>Coming soon: maps, graph, timeline</p>
-      </nav>
+          <div>
+            <h3>Recently modified</h3>
+            <RecentList items={dashboard.recentlyModified} worldId={world.id}/>
+          </div>
 
-      <section>
-        <h2>Statistics</h2>
+          <div>
+            <h3>Recently deleted</h3>
+            <RecentList items={dashboard.recentlyDeleted} worldId={world.id}/>
+          </div>
+        </div>
 
-        <p>Entries: {dashboard.entryCount}</p>
-        <p>Created: {new Date(world.createdAt).toLocaleDateString()}</p>
-        <p>Last updated: {new Date(world.updatedAt).toLocaleDateString()}</p>
-      </section>
+        <div>
+          <h3>Needs attention</h3>
 
-      <section>
-        <h2>Recently created</h2>
-        <RecentList items={dashboard.recentlyCreated} worldId={world.id}/>
-      </section>
+          {attention === 0 && <p className="muted">Nothing needs attention</p>}
 
-      <section>
-        <h2>Recently modified</h2>
-        <RecentList items={dashboard.recentlyModified} worldId={world.id}/>
-      </section>
+          <ul className="plain">
+            {dashboard.untyped.map((entry) => <li key={entry.id}>No type: <Link to={`/worlds/${world.id}/entries/${entry.id}`}>{entry.name}</Link></li>)}
 
-      <section>
-        <h2>Recently deleted</h2>
-        <RecentList items={dashboard.recentlyDeleted} worldId={world.id}/>
-      </section>
+            {dashboard.missingRequired.map((item) => <li key={`${item.entryId}-${item.fieldName}`}><Link to={`/worlds/${world.id}/entries/${item.entryId}`}>{item.name}</Link> is missing {item.fieldName}</li>)}
 
-      <section>
-        <h2>Needs attention</h2>
+            {dashboard.outOfRange.map((item) => <li key={`${item.entryId}-${item.fieldName}`}><Link to={`/worlds/${world.id}/entries/${item.entryId}`}>{item.name}</Link> has a value outside the range of {item.fieldName}</li>)}
 
-        {dashboard.untyped.length === 0 && dashboard.missingRequired.length === 0 && dashboard.outOfRange.length === 0 && dashboard.invalidRelationships.length === 0 && <p>Nothing needs attention</p>}
-
-        {dashboard.untyped.length > 0 && <p>Entries without a type:</p>}
-
-        <ul>
-          {dashboard.untyped.map((entry) => <li key={entry.id}><Link to={`/worlds/${world.id}/entries/${entry.id}`}>{entry.name}</Link></li>)}
-        </ul>
-
-        {dashboard.missingRequired.length > 0 && <p>Entries missing a required field:</p>}
-
-        <ul>
-          {dashboard.missingRequired.map((item) => <li key={`${item.entryId}-${item.fieldName}`}><Link to={`/worlds/${world.id}/entries/${item.entryId}`}>{item.name}</Link>, missing {item.fieldName}</li>)}
-        </ul>
-
-        {dashboard.outOfRange.length > 0 && <p>Entries with a value outside a scale's range:</p>}
-
-        <ul>
-          {dashboard.outOfRange.map((item) => <li key={`${item.entryId}-${item.fieldName}`}><Link to={`/worlds/${world.id}/entries/${item.entryId}`}>{item.name}</Link>, {item.fieldName}</li>)}
-        </ul>
-
-        {dashboard.invalidRelationships.length > 0 && <p>Relationships that no longer match their type:</p>}
-
-        <ul>
-          {dashboard.invalidRelationships.map((item) => (
-            <li key={item.id}>
-              <Link to={`/worlds/${world.id}/entries/${item.fromId}`}>{item.fromName}</Link> {item.typeName} <Link to={`/worlds/${world.id}/entries/${item.toId}`}>{item.toName}</Link>
-            </li>
-          ))}
-        </ul>
-      </section>
-    </div>
+            {dashboard.invalidRelationships.map((item) => (
+              <li key={item.id}>
+                <Link to={`/worlds/${world.id}/entries/${item.fromId}`}>{item.fromName}</Link> {item.typeName} <Link to={`/worlds/${world.id}/entries/${item.toId}`}>{item.toName}</Link> no longer matches its relationship type
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </Page>
   );
 }

@@ -12,10 +12,6 @@ export class CreateRelationshipTypeDto {
   description?: string;
 
   @IsOptional()
-  @IsBoolean({message: 'symmetric must be true or false'})
-  symmetric?: boolean;
-
-  @IsOptional()
   @IsBoolean({message: 'fromAny must be true or false'})
   fromAny?: boolean;
 

@@ -2,7 +2,7 @@ export const FIELD_TYPE_LABELS = {
   text: 'Text',
   long_text: 'Long text',
   number: 'Number',
-  boolean: 'Yes/no',
+  boolean: 'True/false',
   scale: 'Scale',
   choice: 'Choice',
   multi_choice: 'Multiple choice',
@@ -62,7 +62,7 @@ export function describeField(field) {
   const config = field.config || {};
 
   if (field.fieldType === 'boolean') {
-    return `Yes/no (${config.trueLabel} or ${config.falseLabel})`;
+    return `True/false (${config.trueLabel} or ${config.falseLabel})`;
   }
 
   if (field.fieldType === 'scale') {

@@ -1,8 +1,13 @@
 import { useState } from 'react';
 
 function SideChoice({legend, any, ids, entryTypes, onAny, onIds}) {
-  function toggle(typeId) {
-    onIds(ids.includes(typeId) ? ids.filter((item) => item !== typeId) : ids.concat([typeId]));
+  const chosen = entryTypes.filter((type) => ids.includes(type.id));
+  const available = entryTypes.filter((type) => !ids.includes(type.id));
+
+  function handleAdd(event) {
+    if (event.target.value) {
+      onIds(ids.concat([event.target.value]));
+    }
   }
 
   return (
@@ -10,19 +15,33 @@ function SideChoice({legend, any, ids, entryTypes, onAny, onIds}) {
       <legend>{legend}</legend>
 
       <label><input type="radio" checked={any} onChange={() => onAny(true)}/> Any entry type</label>
-      <label><input type="radio" checked={!any} onChange={() => onAny(false)}/> Only these entry types</label>
+      <label><input type="radio" checked={!any} onChange={() => onAny(false)}/> Specific entry types</label>
 
-      {!any && entryTypes.map((type) => (
-        <label key={type.id}><input type="checkbox" checked={ids.includes(type.id)} onChange={() => toggle(type.id)}/> {type.name}</label>
-      ))}
+      {!any && (
+        <div className="tagbox">
+          {chosen.map((type) => (
+            <span key={type.id} className="chip">
+              {type.name}
+
+              <button type="button" aria-label={`Remove ${type.name}`} onClick={() => onIds(ids.filter((item) => item !== type.id))}>&times;</button>
+            </span>
+          ))}
+
+          {available.length > 0 && (
+            <select aria-label="Add an entry type" value="" onChange={handleAdd}>
+              <option value="">Add an entry type</option>
+              {available.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
+            </select>
+          )}
+        </div>
+      )}
     </fieldset>
   );
 }
 
-export default function RelationshipTypeForm({initial, entryTypes, editing, submitLabel, onSubmit, onCancel}) {
+export default function RelationshipTypeForm({initial, entryTypes, submitLabel, onSubmit, onCancel}) {
   const [name, setName] = useState(initial.name);
   const [description, setDescription] = useState(initial.description);
-  const [symmetric, setSymmetric] = useState(initial.symmetric);
   const [fromAny, setFromAny] = useState(initial.fromAny);
   const [fromIds, setFromIds] = useState(initial.fromTypeIds);
   const [toAny, setToAny] = useState(initial.toAny);
@@ -36,10 +55,6 @@ export default function RelationshipTypeForm({initial, entryTypes, editing, subm
     setSubmitting(true);
 
     const data = {name, description, fromAny, fromTypeIds: fromAny ? undefined : fromIds, toAny, toTypeIds: toAny ? undefined : toIds};
-
-    if (!editing) {
-      data.symmetric = symmetric;
-    }
 
     if (confirmRemove) {
       data.confirmRemove = true;
@@ -76,16 +91,11 @@ export default function RelationshipTypeForm({initial, entryTypes, editing, subm
         <textarea id="relDescription" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={500}/>
       </div>
 
-      <div>
-        <label htmlFor="relSymmetric">Works both ways, like Friend</label>
-        <input id="relSymmetric" type="checkbox" checked={symmetric} onChange={(e) => setSymmetric(e.target.checked)} disabled={editing}/>
-
-        {editing && <span>This can not be changed</span>}
-      </div>
-
       <SideChoice legend="First entry can be" any={fromAny} ids={fromIds} entryTypes={entryTypes} onAny={setFromAny} onIds={setFromIds}/>
 
       <SideChoice legend="Second entry can be" any={toAny} ids={toIds} entryTypes={entryTypes} onAny={setToAny} onIds={setToIds}/>
+
+      <p className="muted">If both sides allow the same entry types, the relationship works both ways, like Friend.</p>
 
       {error && <p role="alert">{error}</p>}
 
@@ -99,12 +109,14 @@ export default function RelationshipTypeForm({initial, entryTypes, editing, subm
 
           {pending.count > pending.relationships.length && <p>and {pending.count - pending.relationships.length} more</p>}
 
-          <button type="button" onClick={() => submit(true)} disabled={submitting}>Remove them and save</button>
+          <button type="button" className="danger" onClick={() => submit(true)} disabled={submitting}>Remove them and save</button>
         </div>
       )}
 
-      <button type="submit" disabled={submitting}>{submitLabel}</button>
-      <button type="button" onClick={onCancel}>Cancel</button>
+      <div className="actions">
+        <button type="submit" disabled={submitting}>{submitLabel}</button>
+        <button type="button" onClick={onCancel}>Cancel</button>
+      </div>
     </form>
   );
 }

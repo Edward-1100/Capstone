@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { addEntryTagRequest, listEntryTagsRequest, listTagsRequest, removeEntryTagRequest } from '../api/tags';
 import TagSwatch from './TagSwatch';
 
@@ -55,32 +56,32 @@ export default function EntryTags({worldId, entryId, canEdit}) {
     <div>
       <h2>Tags</h2>
 
-      {entryTags.length === 0 && <p>No tags yet</p>}
+      <div className="tagbox">
+        {entryTags.length === 0 && !canEdit && <span className="muted">No tags yet</span>}
 
-      <ul>
+        {canEdit && allTags.length === 0 && <span className="muted">No tags exist in this world yet. <Link to={`/worlds/${worldId}/tags`}>Click here to create some</Link></span>}
+
         {entryTags.map((tag) => (
-          <li key={tag.id}>
-            <TagSwatch color={tag.color}/> {tag.name}
+          <span key={tag.id} className="chip">
+            <TagSwatch color={tag.color}/>{tag.name}
 
-            {canEdit && <button onClick={() => handleRemove(tag.id)}>Remove</button>}
-          </li>
+            {canEdit && <button type="button" aria-label={`Remove ${tag.name}`} onClick={() => handleRemove(tag.id)}>&times;</button>}
+          </span>
         ))}
-      </ul>
+
+        {canEdit && available.length > 0 && (
+          <form className="inline-form" onSubmit={handleAdd}>
+            <select aria-label="Add a tag" value={tagId} onChange={(e) => setTagId(e.target.value)}>
+              <option value="">Add a tag</option>
+              {available.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
+            </select>
+
+            <button type="submit" disabled={!tagId}>Add</button>
+          </form>
+        )}
+      </div>
 
       {error && <p role="alert">{error}</p>}
-
-      {canEdit && available.length > 0 && (
-        <form onSubmit={handleAdd}>
-          <label htmlFor="addTag">Add tag</label>
-
-          <select id="addTag" value={tagId} onChange={(e) => setTagId(e.target.value)}>
-            <option value="">Choose a tag</option>
-            {available.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
-          </select>
-
-          <button type="submit" disabled={!tagId}>Add</button>
-        </form>
-      )}
     </div>
   );
 }

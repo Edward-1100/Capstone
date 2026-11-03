@@ -7,7 +7,7 @@ function field(fieldType: string, config: any = {}, name = 'Field') {
 describe('normalizeConfig', () => {
   describe('boolean', () => {
     it('defaults to Yes and No', () => {
-      expect(normalizeConfig('boolean', {})).toEqual({trueLabel: 'Yes', falseLabel: 'No'});
+      expect(normalizeConfig('boolean', {})).toEqual({trueLabel: 'True', falseLabel: 'False'});
     });
 
     it('trims the names', () => {
