@@ -680,3 +680,22 @@ button.slide:hover {
     font-size: 1.4rem;
   }
 }
+
+.tag-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.tag-filter button.has,
+.tag-filter button.not {
+  border-color: #000000;
+  font-weight: bold;
+}
+
+.entry-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}

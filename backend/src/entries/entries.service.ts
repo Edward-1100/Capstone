@@ -11,6 +11,38 @@ import { CreateEntryDto } from './dto/create-entry.dto';
 import { UpdateEntryDto } from './dto/update-entry.dto';
 
 const MAX_IMAGES = 5;
+const MAX_TAG_FILTERS = 50;
+
+export interface ListEntriesQuery {
+  typeId?: string;
+  tags?: string | string[];
+  excludeTags?: string | string[];
+  tagMode?: string;
+}
+
+function parseIds(value: unknown, name: string) {
+  if (value === undefined || value === '') {
+    return [];
+  }
+
+  const parts = Array.isArray(value) ? value : [value];
+
+  if (!parts.every((part) => typeof part === 'string')) {
+    throw new BadRequestException(`${name} must be valid ids`);
+  }
+
+  const ids = Array.from(new Set(parts.join(',').split(',').map((item) => item.trim()).filter((item) => item !== '')));
+
+  if (ids.length > MAX_TAG_FILTERS) {
+    throw new BadRequestException(`${name} can only have up to ${MAX_TAG_FILTERS} tags`);
+  }
+
+  if (!ids.every((item) => isUUID(item))) {
+    throw new BadRequestException(`${name} must be valid ids`);
+  }
+
+  return ids;
+}
 
 @Injectable()
 export class EntriesService {
@@ -82,20 +114,38 @@ export class EntriesService {
     return type;
   }
 
-  async list(worldId: string, typeId?: string) {
+  async list(worldId: string, query: ListEntriesQuery = {}) {
+    const typeId = query.typeId;
+
     if (typeId && typeId !== 'none' && !isUUID(typeId)) {
       throw new BadRequestException('typeId must be a valid id or none');
     }
 
+    if (query.tagMode !== undefined && query.tagMode !== 'all' && query.tagMode !== 'any') {
+      throw new BadRequestException('tagMode must be all or any');
+    }
+
+    const included = parseIds(query.tags, 'tags');
+    const excluded = parseIds(query.excludeTags, 'excludeTags');
+
     const result = await this.db.query(
       `SELECT e.id, e.type_id AS "typeId", e.name, e.version, e.updated_at AS "updatedAt",
-              t.name AS "typeName"
+              t.name AS "typeName",
+              COALESCE((SELECT json_agg(json_build_object('id', tg.id, 'name', tg.name, 'color', tg.color) ORDER BY lower(tg.name))
+                        FROM entry_tags et JOIN tags tg ON tg.id = et.tag_id
+                        WHERE et.entry_id = e.id), '[]'::json) AS tags
        FROM active_entries e
        LEFT JOIN entry_types t ON t.id = e.type_id
        WHERE e.world_id = $1
          AND ($2::text IS NULL OR ($2::text = 'none' AND e.type_id IS NULL) OR e.type_id::text = $2::text)
+         AND (cardinality($3::uuid[]) = 0 OR (
+           CASE WHEN $5::text = 'any'
+             THEN EXISTS (SELECT 1 FROM entry_tags et WHERE et.entry_id = e.id AND et.tag_id = ANY($3::uuid[]))
+             ELSE (SELECT count(*) FROM entry_tags et WHERE et.entry_id = e.id AND et.tag_id = ANY($3::uuid[])) = cardinality($3::uuid[])
+           END))
+         AND NOT EXISTS (SELECT 1 FROM entry_tags et WHERE et.entry_id = e.id AND et.tag_id = ANY($4::uuid[]))
        ORDER BY lower(e.name)`,
-      [worldId, typeId || null],
+      [worldId, typeId || null, included, excluded, query.tagMode ?? 'all'],
     );
 
     return result.rows;

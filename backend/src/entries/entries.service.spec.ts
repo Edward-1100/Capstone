@@ -24,7 +24,90 @@ function createService() {
   return {service: new EntriesService(db, storage, nesting), db, client, storage, nesting};
 }
 
+const TAG_A = '11111111-1111-4111-8111-111111111111';
+const TAG_B = '22222222-2222-4222-8222-222222222222';
+const TAG_C = '33333333-3333-4333-8333-333333333333';
+
 describe('EntriesService', () => {
+  describe('list', () => {
+    it('lists with no filters by default', async () => {
+      const {service, db} = createService();
+
+      db.query.mockResolvedValue({rows: [{id: 'e1', tags: []}]});
+
+      expect(await service.list('w1')).toEqual([{id: 'e1', tags: []}]);
+      expect(db.query.mock.calls[0][1]).toEqual(['w1', null, [], [], 'all']);
+    });
+
+    it('passes the type, required tags, left out tags and match mode to the query', async () => {
+      const {service, db} = createService();
+
+      db.query.mockResolvedValue({rows: []});
+
+      await service.list('w1', {typeId: TAG_C, tags: `${TAG_A},${TAG_B}`, excludeTags: TAG_C, tagMode: 'any'});
+
+      expect(db.query.mock.calls[0][1]).toEqual(['w1', TAG_C, [TAG_A, TAG_B], [TAG_C], 'any']);
+    });
+
+    it('lets the none type through', async () => {
+      const {service, db} = createService();
+
+      db.query.mockResolvedValue({rows: []});
+
+      await service.list('w1', {typeId: 'none'});
+
+      expect(db.query.mock.calls[0][1][1]).toBe('none');
+    });
+
+    it('ignores blanks and repeats in a tag list', async () => {
+      const {service, db} = createService();
+
+      db.query.mockResolvedValue({rows: []});
+
+      await service.list('w1', {tags: ` ${TAG_A},,${TAG_A} `});
+
+      expect(db.query.mock.calls[0][1][2]).toEqual([TAG_A]);
+    });
+
+    it('accepts a tag list sent as a repeated parameter', async () => {
+      const {service, db} = createService();
+
+      db.query.mockResolvedValue({rows: []});
+
+      await service.list('w1', {tags: [TAG_A, TAG_B]});
+
+      expect(db.query.mock.calls[0][1][2]).toEqual([TAG_A, TAG_B]);
+    });
+
+    it('rejects a type filter that is not an id or none', async () => {
+      const {service, db} = createService();
+
+      await expect(service.list('w1', {typeId: 'nope'})).rejects.toThrow('typeId must be a valid id or none');
+      expect(db.query).not.toHaveBeenCalled();
+    });
+
+    it('rejects tag ids that are not valid', async () => {
+      const {service, db} = createService();
+
+      await expect(service.list('w1', {tags: `${TAG_A},nope`})).rejects.toThrow('tags must be valid ids');
+      await expect(service.list('w1', {excludeTags: 'nope'})).rejects.toThrow('excludeTags must be valid ids');
+      expect(db.query).not.toHaveBeenCalled();
+    });
+
+    it('rejects too many tags', async () => {
+      const {service} = createService();
+      const many = Array.from({length: 51}, (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`).join(',');
+
+      await expect(service.list('w1', {tags: many})).rejects.toThrow('tags can only have up to 50 tags');
+    });
+
+    it('rejects a match mode other than all or any', async () => {
+      const {service} = createService();
+
+      await expect(service.list('w1', {tagMode: 'some'})).rejects.toThrow('tagMode must be all or any');
+    });
+  });
+
   describe('update', () => {
     it('returns a conflict when the version is stale', async () => {
       const {service, client} = createService();

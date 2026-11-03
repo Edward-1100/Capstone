@@ -95,8 +95,6 @@ export default function RelationshipTypeForm({initial, entryTypes, submitLabel, 
 
       <SideChoice legend="Second entry can be" any={toAny} ids={toIds} entryTypes={entryTypes} onAny={setToAny} onIds={setToIds}/>
 
-      <p className="muted">If both sides allow the same entry types, the relationship works both ways, like Friend.</p>
-
       {error && <p role="alert">{error}</p>}
 
       {pending && (
