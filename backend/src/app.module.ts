@@ -9,7 +9,12 @@ import { EntryTypesModule } from './entry-types/entry-types.module';
 import { EntriesModule } from './entries/entries.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { StorageModule } from './storage/storage.module';
+import { TagsModule } from './tags/tags.module';
+import { CommentsModule } from './comments/comments.module';
+import { NotesModule } from './notes/notes.module';
 import { DatabaseModule } from './database/database.module';
+import { NestingModule } from './nesting/nesting.module';
+import { RelationshipsModule } from './relationships/relationships.module';
 
 @Module({
   imports: [
@@ -20,10 +25,15 @@ import { DatabaseModule } from './database/database.module';
     }),
     DatabaseModule,
     StorageModule,
+    NestingModule,
     AuthModule,
     WorldsModule,
     EntryTypesModule,
     EntriesModule,
+    RelationshipsModule,
+    TagsModule,
+    CommentsModule,
+    NotesModule,
     DashboardModule,
   ],
   controllers: [AppController],

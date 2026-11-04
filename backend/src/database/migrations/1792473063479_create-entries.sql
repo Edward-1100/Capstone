@@ -3,14 +3,12 @@ CREATE TABLE entry_types (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   world_id UUID NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
-  kind TEXT CHECK (kind IN ('character', 'location', 'faction', 'event')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (id, world_id)
 );
 
 CREATE UNIQUE INDEX entry_types_world_name_idx ON entry_types (world_id, lower(name));
-CREATE INDEX entry_types_world_kind_idx ON entry_types (world_id, kind);
 
 CREATE TABLE entries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -48,10 +46,10 @@ CREATE TABLE activity_log (
 
 CREATE INDEX activity_log_world_idx ON activity_log (world_id, created_at DESC);
 
-INSERT INTO entry_types (world_id, name, kind)
-SELECT w.id, t.name, t.kind
+INSERT INTO entry_types (world_id, name)
+SELECT w.id, t.name
 FROM worlds w
-CROSS JOIN (VALUES ('Characters', 'character'), ('Locations', 'location'), ('Factions', 'faction'), ('Events', 'event')) AS t(name, kind);
+CROSS JOIN (VALUES ('Characters'), ('Locations'), ('Factions'), ('Events')) AS t(name);
 
 -- Down Migration
 DROP VIEW active_entries;

@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, UseGuards } from '@nestjs/common';
 import { WorldRole } from '../common/decorators/world-role.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt-auth.guard';
 import { WorldRoleGuard } from '../common/guards/world-role.guard';
 import { DeleteEntryTypeDto } from './dto/delete-entry-type.dto';
 import { EntryTypeDto } from './dto/entry-type.dto';
+import { NestingDto } from './dto/nesting.dto';
 import { EntryTypesService } from './entry-types.service';
 
 @Controller('worlds/:id/entry-types')
@@ -29,6 +30,13 @@ export class EntryTypesController {
   @UseGuards(JwtAuthGuard, WorldRoleGuard)
   update(@Param('id') id: string, @Param('typeId', ParseUUIDPipe) typeId: string, @Body() dto: EntryTypeDto) {
     return this.types.update(id, typeId, dto);
+  }
+
+  @Put(':typeId/nesting')
+  @WorldRole('editor')
+  @UseGuards(JwtAuthGuard, WorldRoleGuard)
+  setNesting(@Param('id') id: string, @Param('typeId', ParseUUIDPipe) typeId: string, @Body() dto: NestingDto) {
+    return this.types.setNesting(id, typeId, dto);
   }
 
   @Delete(':typeId')

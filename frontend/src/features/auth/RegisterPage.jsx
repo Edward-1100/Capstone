@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import Page from '../../components/Page';
 import { useAuth } from '../../context/AuthContext';
 
 export default function RegisterPage() {
@@ -28,31 +29,35 @@ export default function RegisterPage() {
   }
 
   return (
-    <div>
-      <h1>Register</h1>
+    <Page size="narrow">
+      <div className="panel">
+        <h1 className="title">Register</h1>
 
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="email">Email</label>
-          <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required/>
-        </div>
+        <form onSubmit={handleSubmit}>
+          <div>
+            <label htmlFor="email">Email</label>
+            <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required/>
+          </div>
 
-        <div>
-          <label htmlFor="username">Username</label>
-          <input id="username" type="text" value={username} onChange={(e) => setUsername(e.target.value)} minLength={3} maxLength={45} required/>
-        </div>
+          <div>
+            <label htmlFor="username">Username</label>
+            <input id="username" type="text" value={username} onChange={(e) => setUsername(e.target.value)} minLength={3} maxLength={45} required/>
+          </div>
 
-        <div>
-          <label htmlFor="password">Password</label>
-          <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} maxLength={72} required/>
-        </div>
+          <div>
+            <label htmlFor="password">Password</label>
+            <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} maxLength={72} required/>
+          </div>
 
-        {error && <p role="alert">{error}</p>}
+          {error && <p role="alert">{error}</p>}
 
-        <button type="submit" disabled={submitting}>Register</button>
-      </form>
+          <div className="actions">
+            <button type="submit" disabled={submitting}>Register</button>
+          </div>
+        </form>
 
-      <p>Already have an account? <Link to="/login">Log in</Link></p>
-    </div>
+        <p>Already have an account? <Link to="/login">Log in</Link></p>
+      </div>
+    </Page>
   );
 }

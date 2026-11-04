@@ -14,8 +14,15 @@ export class EntriesController {
 
   @Get()
   @UseGuards(OptionalJwtAuthGuard, WorldRoleGuard)
-  list(@Param('id') id: string, @Query('typeId') typeId?: string) {
-    return this.entries.list(id, typeId);
+  list(@Param('id') id: string, @Query('typeId') typeId?: string, @Query('tags') tags?: string | string[], @Query('excludeTags') excludeTags?: string | string[], @Query('tagMode') tagMode?: string) {
+    return this.entries.list(id, {typeId, tags, excludeTags, tagMode});
+  }
+
+  @Get('parent-options')
+  @WorldRole('editor')
+  @UseGuards(JwtAuthGuard, WorldRoleGuard)
+  parentOptions(@Param('id') id: string, @Query('typeId') typeId?: string, @Query('entryId') entryId?: string) {
+    return this.entries.parentOptions(id, typeId, entryId);
   }
 
   @Post()

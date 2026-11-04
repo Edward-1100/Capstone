@@ -1,9 +1,27 @@
 import { apiFetch } from './client';
 
-export function listEntriesRequest(worldId, typeId) {
-  const query = typeId ? `?typeId=${encodeURIComponent(typeId)}` : '';
+export function listEntriesRequest(worldId, filters = {}) {
+  const params = new URLSearchParams();
 
-  return apiFetch(`/worlds/${worldId}/entries${query}`);
+  if (filters.typeId) {
+    params.set('typeId', filters.typeId);
+  }
+
+  if (filters.tags && filters.tags.length > 0) {
+    params.set('tags', filters.tags.join(','));
+  }
+
+  if (filters.excludeTags && filters.excludeTags.length > 0) {
+    params.set('excludeTags', filters.excludeTags.join(','));
+  }
+
+  if (filters.tagMode) {
+    params.set('tagMode', filters.tagMode);
+  }
+
+  const query = params.toString();
+
+  return apiFetch(`/worlds/${worldId}/entries${query ? `?${query}` : ''}`);
 }
 
 export function getEntryRequest(worldId, entryId) {
