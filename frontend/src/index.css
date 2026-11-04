@@ -699,3 +699,16 @@ button.slide:hover {
   gap: 0.5rem;
   font-size: 0.9rem;
 }
+
+.comment + .comment {
+  margin-top: 1rem;
+}
+
+.comment .by {
+  color: #555555;
+  font-size: 0.9rem;
+}
+
+.comment-body {
+  white-space: pre-wrap;
+}

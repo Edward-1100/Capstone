@@ -10,6 +10,8 @@ import { EntriesModule } from './entries/entries.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { StorageModule } from './storage/storage.module';
 import { TagsModule } from './tags/tags.module';
+import { CommentsModule } from './comments/comments.module';
+import { NotesModule } from './notes/notes.module';
 import { DatabaseModule } from './database/database.module';
 import { NestingModule } from './nesting/nesting.module';
 import { RelationshipsModule } from './relationships/relationships.module';
@@ -30,6 +32,8 @@ import { RelationshipsModule } from './relationships/relationships.module';
     EntriesModule,
     RelationshipsModule,
     TagsModule,
+    CommentsModule,
+    NotesModule,
     DashboardModule,
   ],
   controllers: [AppController],

@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom';
 import { deleteEntryRequest, getEntryRequest, updateEntryRequest } from '../api/entries';
 import { listEntryTypesRequest } from '../api/entryTypes';
 import { formatValue } from '../utils/fields';
+import EntryComments from './EntryComments';
 import EntryGallery from './EntryGallery';
+import EntryNotes from './EntryNotes';
 import EntryRelationships from './EntryRelationships';
 import EntryTags from './EntryTags';
 import FieldInput from './FieldInput';
@@ -273,6 +275,10 @@ export default function EntryView({worldId, entryId, role, onDeleted}) {
       <EntryTags worldId={worldId} entryId={entryId} canEdit={canEdit}/>
 
       <EntryRelationships worldId={worldId} entryId={entryId} entryTypeId={entry.typeId} canEdit={canEdit}/>
+
+      {canEdit && <EntryNotes worldId={worldId} entryId={entryId} role={role}/>}
+
+      <EntryComments worldId={worldId} entryId={entryId} role={role}/>
 
       {canEdit && (
         <div>
