@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { deleteEntryRequest, getEntryRequest, updateEntryRequest } from '../api/entries';
+import { deleteEntryRequest, getEntryRequest, listEntriesRequest, updateEntryRequest } from '../api/entries';
 import { listEntryTypesRequest } from '../api/entryTypes';
 import { formatValue } from '../utils/fields';
 import EntryComments from './EntryComments';
@@ -9,12 +9,15 @@ import EntryNotes from './EntryNotes';
 import EntryRelationships from './EntryRelationships';
 import EntryTags from './EntryTags';
 import FieldInput from './FieldInput';
+import LinkedText from './LinkedText';
+import LinkTextarea from './LinkTextarea';
 
 export default function EntryView({worldId, entryId, role, onDeleted}) {
   const canEdit = role === 'owner' || role === 'editor';
 
   const [entry, setEntry] = useState(null);
   const [types, setTypes] = useState([]);
+  const [allEntries, setAllEntries] = useState([]);
   const [loadError, setLoadError] = useState(null);
   const [editing, setEditing] = useState('');
   const [nameDraft, setNameDraft] = useState('');
@@ -27,15 +30,16 @@ export default function EntryView({worldId, entryId, role, onDeleted}) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => {
-    const requests = [getEntryRequest(worldId, entryId)];
+    const requests = [getEntryRequest(worldId, entryId), listEntriesRequest(worldId)];
 
     if (canEdit) {
       requests.push(listEntryTypesRequest(worldId));
     }
 
     Promise.all(requests)
-      .then(([entryData, typeData]) => {
+      .then(([entryData, entryList, typeData]) => {
         setEntry(entryData);
+        setAllEntries(entryList);
         setTypes(typeData || []);
         setLoadError(null);
       })
@@ -219,11 +223,11 @@ export default function EntryView({worldId, entryId, role, onDeleted}) {
       <EntryGallery worldId={worldId} entryId={entryId} entryName={entry.name} images={entry.images} canEdit={canEdit} onChange={setEntry}/>
 
       <div>
-        {editing !== 'description' && <div className="description">{entry.description || <span className="muted">No description yet</span>}</div>}
+        {editing !== 'description' && <div className="description">{entry.description ? <LinkedText worldId={worldId} text={entry.description} entries={allEntries}/> : <span className="muted">No description yet</span>}</div>}
 
         {editing === 'description' && (
           <form onSubmit={handleSaveDescription}>
-            <textarea className="description-input" aria-label="Description" value={descriptionDraft} onChange={(e) => setDescriptionDraft(e.target.value)} maxLength={20000}/>
+            <LinkTextarea value={descriptionDraft} onChange={setDescriptionDraft} maxLength={20000} entries={allEntries.filter((item) => item.id !== entryId && !/[[\]]/.test(item.name)).map((item) => ({id: item.id, name: item.name, typeName: item.typeName, count: item.relationshipCount}))}/>
 
             <div className="actions">
               <button type="submit">Save</button>

@@ -13,14 +13,22 @@ import { UpdateEntryDto } from './dto/update-entry.dto';
 const MAX_IMAGES = 5;
 const MAX_TAG_FILTERS = 50;
 
+const MAX_SEARCH_LENGTH = 100;
+
 export interface ListEntriesQuery {
-  typeId?: string;
+  q?: string;
+  types?: string | string[];
+  excludeTypes?: string | string[];
   tags?: string | string[];
   excludeTags?: string | string[];
   tagMode?: string;
+  inside?: string | string[];
+  excludeInside?: string | string[];
+  relations?: string | string[];
+  excludeRelations?: string | string[];
 }
 
-function parseIds(value: unknown, name: string) {
+function parseList(value: unknown, name: string, message: string) {
   if (value === undefined || value === '') {
     return [];
   }
@@ -28,20 +36,44 @@ function parseIds(value: unknown, name: string) {
   const parts = Array.isArray(value) ? value : [value];
 
   if (!parts.every((part) => typeof part === 'string')) {
-    throw new BadRequestException(`${name} must be valid ids`);
+    throw new BadRequestException(message);
   }
 
-  const ids = Array.from(new Set(parts.join(',').split(',').map((item) => item.trim()).filter((item) => item !== '')));
+  const items = Array.from(new Set(parts.join(',').split(',').map((item) => item.trim()).filter((item) => item !== '')));
 
-  if (ids.length > MAX_TAG_FILTERS) {
+  if (items.length > MAX_TAG_FILTERS) {
     throw new BadRequestException(`${name} can only have up to ${MAX_TAG_FILTERS} tags`);
   }
 
-  if (!ids.every((item) => isUUID(item))) {
-    throw new BadRequestException(`${name} must be valid ids`);
+  return items;
+}
+
+function parseIds(value: unknown, name: string, allowNone = false) {
+  const message = allowNone ? `${name} must be valid ids or none` : `${name} must be valid ids`;
+  const ids = parseList(value, name, message);
+
+  if (!ids.every((item) => isUUID(item) || (allowNone && item === 'none'))) {
+    throw new BadRequestException(message);
   }
 
   return ids;
+}
+
+function parseRelations(value: unknown, name: string) {
+  const message = `${name} must look like typeId:from or to:entryId`;
+  const items = parseList(value, name, message);
+  const parsed = items.map((item) => item.split(':'));
+  const valid = parsed.every((parts) => parts.length === 3 && isUUID(parts[0]) && (parts[1] === 'from' || parts[1] === 'to') && isUUID(parts[2]));
+
+  if (!valid) {
+    throw new BadRequestException(message);
+  }
+
+  return {types: parsed.map((parts) => parts[0]), sides: parsed.map((parts) => parts[1]), entries: parsed.map((parts) => parts[2])};
+}
+
+function splitNone(ids: string[]) {
+  return {ids: ids.filter((item) => item !== 'none'), none: ids.includes('none')};
 }
 
 @Injectable()
@@ -60,6 +92,19 @@ export class EntriesService {
     return client.query(
       'INSERT INTO activity_log (world_id, entry_id, action, entry_name, user_id) VALUES ($1, $2, $3, $4, $5)',
       [worldId, entryId, action, name, userId],
+    );
+  }
+
+  private renameLinks(client: PoolClient, worldId: string, entryId: string, oldName: string, newName: string) {
+    const pattern = `\\[\\[${oldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]\\]`;
+    const replacement = `[[${newName.replace(/\\/g, '\\\\')}]]`;
+
+    return client.query(
+      `UPDATE entries
+       SET description = regexp_replace(description, $2, $3, 'gi'), version = version + 1, updated_at = now()
+       WHERE world_id = $1 AND deleted_at IS NULL AND description ~* $2
+         AND NOT EXISTS (SELECT 1 FROM entries other WHERE other.world_id = $1 AND other.deleted_at IS NULL AND other.id <> $4 AND lower(other.name) = lower($5))`,
+      [worldId, pattern, replacement, entryId, oldName],
     );
   }
 
@@ -115,37 +160,66 @@ export class EntriesService {
   }
 
   async list(worldId: string, query: ListEntriesQuery = {}) {
-    const typeId = query.typeId;
-
-    if (typeId && typeId !== 'none' && !isUUID(typeId)) {
-      throw new BadRequestException('typeId must be a valid id or none');
-    }
-
     if (query.tagMode !== undefined && query.tagMode !== 'all' && query.tagMode !== 'any') {
       throw new BadRequestException('tagMode must be all or any');
     }
 
+    if (query.q !== undefined && typeof query.q !== 'string') {
+      throw new BadRequestException('q must be text');
+    }
+
+    const search = (query.q ?? '').trim();
+
+    if (search.length > MAX_SEARCH_LENGTH) {
+      throw new BadRequestException(`q can only be up to ${MAX_SEARCH_LENGTH} characters`);
+    }
+
+    const types = splitNone(parseIds(query.types, 'types', true));
+    const excludedTypes = splitNone(parseIds(query.excludeTypes, 'excludeTypes', true));
     const included = parseIds(query.tags, 'tags');
     const excluded = parseIds(query.excludeTags, 'excludeTags');
+    const inside = parseIds(query.inside, 'inside');
+    const outside = parseIds(query.excludeInside, 'excludeInside');
+    const related = parseRelations(query.relations, 'relations');
+    const unrelated = parseRelations(query.excludeRelations, 'excludeRelations');
 
     const result = await this.db.query(
-      `SELECT e.id, e.type_id AS "typeId", e.name, e.version, e.updated_at AS "updatedAt",
+      `SELECT e.id, e.type_id AS "typeId", e.name, e.version, e.created_at AS "createdAt", e.updated_at AS "updatedAt",
               t.name AS "typeName",
-              COALESCE((SELECT json_agg(json_build_object('id', tg.id, 'name', tg.name, 'color', tg.color) ORDER BY lower(tg.name))
-                        FROM entry_tags et JOIN tags tg ON tg.id = et.tag_id
+              (SELECT count(*)::int FROM relationships r WHERE r.from_entry_id = e.id OR r.to_entry_id = e.id) AS "relationshipCount",
+              COALESCE((SELECT json_agg(json_build_object('id', tg.id, 'name', tg.name, 'color', tg.color, 'auto', et.auto) ORDER BY lower(tg.name))
+                        FROM effective_entry_tags et JOIN tags tg ON tg.id = et.tag_id
                         WHERE et.entry_id = e.id), '[]'::json) AS tags
        FROM active_entries e
        LEFT JOIN entry_types t ON t.id = e.type_id
        WHERE e.world_id = $1
-         AND ($2::text IS NULL OR ($2::text = 'none' AND e.type_id IS NULL) OR e.type_id::text = $2::text)
-         AND (cardinality($3::uuid[]) = 0 OR (
-           CASE WHEN $5::text = 'any'
-             THEN EXISTS (SELECT 1 FROM entry_tags et WHERE et.entry_id = e.id AND et.tag_id = ANY($3::uuid[]))
-             ELSE (SELECT count(*) FROM entry_tags et WHERE et.entry_id = e.id AND et.tag_id = ANY($3::uuid[])) = cardinality($3::uuid[])
+         AND ($2::text = '' OR position(lower($2::text) in lower(e.name)) > 0 OR position(lower($2::text) in lower(e.description)) > 0)
+         AND (cardinality($3::uuid[]) = 0 AND NOT $4::boolean OR e.type_id = ANY($3::uuid[]) OR ($4::boolean AND e.type_id IS NULL))
+         AND NOT (COALESCE(e.type_id = ANY($5::uuid[]), false) OR ($6::boolean AND e.type_id IS NULL))
+         AND (cardinality($7::uuid[]) = 0 OR (
+           CASE WHEN $9::text = 'any'
+             THEN EXISTS (SELECT 1 FROM effective_entry_tags et WHERE et.entry_id = e.id AND et.tag_id = ANY($7::uuid[]))
+             ELSE (SELECT count(*) FROM effective_entry_tags et WHERE et.entry_id = e.id AND et.tag_id = ANY($7::uuid[])) = cardinality($7::uuid[])
            END))
-         AND NOT EXISTS (SELECT 1 FROM entry_tags et WHERE et.entry_id = e.id AND et.tag_id = ANY($4::uuid[]))
+         AND NOT EXISTS (SELECT 1 FROM effective_entry_tags et WHERE et.entry_id = e.id AND et.tag_id = ANY($8::uuid[]))
+         AND (cardinality($10::uuid[]) = 0 OR $10::uuid[] && ARRAY(SELECT entry_ancestors(e.id)))
+         AND NOT ($11::uuid[] && ARRAY(SELECT entry_ancestors(e.id)))
+         AND NOT EXISTS (
+           SELECT 1 FROM unnest($12::uuid[], $13::text[], $14::uuid[]) AS f(type_id, side, other_id)
+           WHERE NOT EXISTS (
+             SELECT 1 FROM relationships r
+             WHERE r.relationship_type_id = f.type_id
+               AND ((f.side = 'to' AND r.to_entry_id = f.other_id AND r.from_entry_id = e.id) OR (f.side = 'from' AND r.from_entry_id = f.other_id AND r.to_entry_id = e.id))
+           ))
+         AND NOT EXISTS (
+           SELECT 1 FROM unnest($15::uuid[], $16::text[], $17::uuid[]) AS f(type_id, side, other_id)
+           WHERE EXISTS (
+             SELECT 1 FROM relationships r
+             WHERE r.relationship_type_id = f.type_id
+               AND ((f.side = 'to' AND r.to_entry_id = f.other_id AND r.from_entry_id = e.id) OR (f.side = 'from' AND r.from_entry_id = f.other_id AND r.to_entry_id = e.id))
+           ))
        ORDER BY lower(e.name)`,
-      [worldId, typeId || null, included, excluded, query.tagMode ?? 'all'],
+      [worldId, search, types.ids, types.none, excludedTypes.ids, excludedTypes.none, included, excluded, query.tagMode ?? 'all', inside, outside, related.types, related.sides, related.entries, unrelated.types, unrelated.sides, unrelated.entries],
     );
 
     return result.rows;
@@ -274,6 +348,10 @@ export class EntriesService {
         }
 
         await this.log(client, worldId, entryId, 'updated', result.rows[0].name, userId);
+
+        if (result.rows[0].name !== entry.name) {
+          await this.renameLinks(client, worldId, entryId, entry.name, result.rows[0].name);
+        }
       });
 
       return await this.findOne(worldId, entryId);

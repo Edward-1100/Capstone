@@ -43,7 +43,7 @@ export default function WorldPage() {
   }
 
   const visibility = world.visibility === 'private' ? 'Private' : 'Public';
-  const attention = dashboard.untyped.length + dashboard.missingRequired.length + dashboard.outOfRange.length + dashboard.invalidRelationships.length;
+  const attention = dashboard.untyped.length + dashboard.missingRequired.length + dashboard.outOfRange.length + dashboard.invalidRelationships.length + dashboard.pausedRules.length;
 
   return (
     <Page crumbs={user ? [{to: '/', label: 'Your worlds'}, {label: world.name}] : []}>
@@ -111,6 +111,8 @@ export default function WorldPage() {
                 <Link to={`/worlds/${world.id}/entries/${item.fromId}`}>{item.fromName}</Link> {item.typeName} <Link to={`/worlds/${world.id}/entries/${item.toId}`}>{item.toName}</Link> no longer matches its relationship type
               </li>
             ))}
+
+            {dashboard.pausedRules.map((item) => <li key={item.tagId}>The rule for the tag <Link to={`/worlds/${world.id}/tags?tag=${item.tagId}`}>{item.tagName}</Link> is paused because something it uses was deleted</li>)}
           </ul>
         </div>
       </div>

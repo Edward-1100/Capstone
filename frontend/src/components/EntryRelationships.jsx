@@ -38,10 +38,6 @@ export default function EntryRelationships({worldId, entryId, entryTypeId, canEd
   }
 
   function otherFits(other) {
-    if (type.symmetric) {
-      return fits(entryTypeId, other.typeId) || fits(other.typeId, entryTypeId);
-    }
-
     return direction === 'out' ? fits(entryTypeId, other.typeId) : fits(other.typeId, entryTypeId);
   }
 
@@ -72,7 +68,7 @@ export default function EntryRelationships({worldId, entryId, entryTypeId, canEd
     event.preventDefault();
     setError('');
 
-    const reversed = direction === 'in' && !type.symmetric;
+    const reversed = direction === 'in';
 
     try {
       await createRelationshipRequest(worldId, {typeId, fromEntryId: reversed ? otherId : entryId, toEntryId: reversed ? entryId : otherId});
@@ -111,7 +107,7 @@ export default function EntryRelationships({worldId, entryId, entryTypeId, canEd
       <ul className="rows">
         {relationships.map((item) => (
           <li key={item.id}>
-            <span className="kind">{item.direction === 'out' || item.symmetric ? item.typeName : `${item.typeName} (incoming)`}</span>
+            <span className="kind">{item.direction === 'out' ? item.typeName : `${item.typeName} (incoming)`}</span>
 
             <span className="other"><Link to={`/worlds/${worldId}/entries/${item.otherId}`}>{item.otherName}</Link> <span>{item.otherTypeName || 'no type'}</span></span>
 
@@ -133,7 +129,7 @@ export default function EntryRelationships({worldId, entryId, entryTypeId, canEd
             </select>
           </div>
 
-          {type && !type.symmetric && (
+          {type && (
             <div>
               <label htmlFor="relDirection">Direction</label>
 

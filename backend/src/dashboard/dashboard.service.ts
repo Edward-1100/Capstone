@@ -54,6 +54,15 @@ export class DashboardService {
       [worldId],
     );
     const invalidRelationships = await this.relationships.findInvalid(this.db, worldId, undefined, 50);
+    const pausedRules = await this.db.query(
+      `SELECT t.id AS "tagId", t.name AS "tagName"
+       FROM paused_tag_rules p
+       JOIN tags t ON t.id = p.tag_id
+       WHERE p.world_id = $1
+       ORDER BY lower(t.name)
+       LIMIT 50`,
+      [worldId],
+    );
     const recentlyCreated = await this.recent(worldId, 'created');
     const recentlyModified = await this.recent(worldId, 'updated');
     const recentlyDeleted = await this.recent(worldId, 'deleted');
@@ -67,6 +76,7 @@ export class DashboardService {
       missingRequired: missingRequired.rows,
       outOfRange: outOfRange.rows,
       invalidRelationships,
+      pausedRules: pausedRules.rows,
     };
   }
 }

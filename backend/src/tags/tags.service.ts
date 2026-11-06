@@ -20,7 +20,9 @@ export class TagsService {
   private async load(client: Queryable, worldId: string, tagId?: string) {
     const result = await client.query(
       `SELECT t.id, t.name, t.color, t.created_at AS "createdAt",
-              (SELECT count(*)::int FROM entry_tags et JOIN active_entries e ON e.id = et.entry_id WHERE et.tag_id = t.id) AS "entryCount"
+              (SELECT count(*)::int FROM effective_entry_tags et JOIN active_entries e ON e.id = et.entry_id WHERE et.tag_id = t.id) AS "entryCount",
+              (EXISTS (SELECT 1 FROM tag_rule_conditions c WHERE c.tag_id = t.id) OR EXISTS (SELECT 1 FROM tag_rule_entries x WHERE x.tag_id = t.id)) AS "hasRule",
+              EXISTS (SELECT 1 FROM paused_tag_rules p WHERE p.tag_id = t.id) AS paused
        FROM tags t
        WHERE t.world_id = $1 AND ($2::uuid IS NULL OR t.id = $2::uuid)
        ORDER BY lower(t.name)`,
@@ -32,7 +34,7 @@ export class TagsService {
 
   private async tagsOf(client: Queryable, entryId: string) {
     const result = await client.query(
-      'SELECT t.id, t.name, t.color FROM entry_tags et JOIN tags t ON t.id = et.tag_id WHERE et.entry_id = $1 ORDER BY lower(t.name)',
+      'SELECT t.id, t.name, t.color, et.auto FROM effective_entry_tags et JOIN tags t ON t.id = et.tag_id WHERE et.entry_id = $1 ORDER BY lower(t.name)',
       [entryId],
     );
 
@@ -110,7 +112,7 @@ export class TagsService {
       }
 
       const used = await client.query(
-        'SELECT count(*)::int AS count FROM entry_tags et JOIN active_entries e ON e.id = et.entry_id WHERE et.tag_id = $1',
+        'SELECT count(*)::int AS count FROM effective_entry_tags et JOIN active_entries e ON e.id = et.entry_id WHERE et.tag_id = $1',
         [tagId],
       );
 

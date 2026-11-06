@@ -36,27 +36,27 @@ describe('EntriesService', () => {
       db.query.mockResolvedValue({rows: [{id: 'e1', tags: []}]});
 
       expect(await service.list('w1')).toEqual([{id: 'e1', tags: []}]);
-      expect(db.query.mock.calls[0][1]).toEqual(['w1', null, [], [], 'all']);
+      expect(db.query.mock.calls[0][1]).toEqual(['w1', '', [], false, [], false, [], [], 'all', [], [], [], [], [], [], [], []]);
     });
 
-    it('passes the type, required tags, left out tags and match mode to the query', async () => {
+    it('passes every filter to the query', async () => {
       const {service, db} = createService();
 
       db.query.mockResolvedValue({rows: []});
 
-      await service.list('w1', {typeId: TAG_C, tags: `${TAG_A},${TAG_B}`, excludeTags: TAG_C, tagMode: 'any'});
+      await service.list('w1', {q: '  keep ', types: TAG_C, excludeTypes: TAG_A, tags: `${TAG_A},${TAG_B}`, excludeTags: TAG_C, tagMode: 'any', inside: TAG_B, excludeInside: TAG_C, relations: `${TAG_A}:to:${TAG_B}`, excludeRelations: `${TAG_B}:from:${TAG_C},${TAG_A}:to:${TAG_C}`});
 
-      expect(db.query.mock.calls[0][1]).toEqual(['w1', TAG_C, [TAG_A, TAG_B], [TAG_C], 'any']);
+      expect(db.query.mock.calls[0][1]).toEqual(['w1', 'keep', [TAG_C], false, [TAG_A], false, [TAG_A, TAG_B], [TAG_C], 'any', [TAG_B], [TAG_C], [TAG_A], ['to'], [TAG_B], [TAG_B, TAG_A], ['from', 'to'], [TAG_C, TAG_C]]);
     });
 
-    it('lets the none type through', async () => {
+    it('lets the none type through as its own flag', async () => {
       const {service, db} = createService();
 
       db.query.mockResolvedValue({rows: []});
 
-      await service.list('w1', {typeId: 'none'});
+      await service.list('w1', {types: `none,${TAG_A}`, excludeTypes: 'none'});
 
-      expect(db.query.mock.calls[0][1][1]).toBe('none');
+      expect(db.query.mock.calls[0][1].slice(2, 6)).toEqual([[TAG_A], true, [], true]);
     });
 
     it('ignores blanks and repeats in a tag list', async () => {
@@ -66,7 +66,7 @@ describe('EntriesService', () => {
 
       await service.list('w1', {tags: ` ${TAG_A},,${TAG_A} `});
 
-      expect(db.query.mock.calls[0][1][2]).toEqual([TAG_A]);
+      expect(db.query.mock.calls[0][1][6]).toEqual([TAG_A]);
     });
 
     it('accepts a tag list sent as a repeated parameter', async () => {
@@ -76,21 +76,26 @@ describe('EntriesService', () => {
 
       await service.list('w1', {tags: [TAG_A, TAG_B]});
 
-      expect(db.query.mock.calls[0][1][2]).toEqual([TAG_A, TAG_B]);
+      expect(db.query.mock.calls[0][1][6]).toEqual([TAG_A, TAG_B]);
     });
 
     it('rejects a type filter that is not an id or none', async () => {
       const {service, db} = createService();
 
-      await expect(service.list('w1', {typeId: 'nope'})).rejects.toThrow('typeId must be a valid id or none');
+      await expect(service.list('w1', {types: 'nope'})).rejects.toThrow('types must be valid ids or none');
+      await expect(service.list('w1', {excludeTypes: 'nope'})).rejects.toThrow('excludeTypes must be valid ids or none');
       expect(db.query).not.toHaveBeenCalled();
     });
 
-    it('rejects tag ids that are not valid', async () => {
+    it('rejects ids that are not valid', async () => {
       const {service, db} = createService();
 
       await expect(service.list('w1', {tags: `${TAG_A},nope`})).rejects.toThrow('tags must be valid ids');
       await expect(service.list('w1', {excludeTags: 'nope'})).rejects.toThrow('excludeTags must be valid ids');
+      await expect(service.list('w1', {inside: 'nope'})).rejects.toThrow('inside must be valid ids');
+      await expect(service.list('w1', {excludeInside: 'nope'})).rejects.toThrow('excludeInside must be valid ids');
+      await expect(service.list('w1', {relations: 'nope'})).rejects.toThrow('relations must look like typeId:from or to:entryId');
+      await expect(service.list('w1', {excludeRelations: `${TAG_A}:up:${TAG_B}`})).rejects.toThrow('excludeRelations must look like typeId:from or to:entryId');
       expect(db.query).not.toHaveBeenCalled();
     });
 
@@ -105,6 +110,13 @@ describe('EntriesService', () => {
       const {service} = createService();
 
       await expect(service.list('w1', {tagMode: 'some'})).rejects.toThrow('tagMode must be all or any');
+    });
+
+    it('rejects a search that is too long or not text', async () => {
+      const {service} = createService();
+
+      await expect(service.list('w1', {q: 'a'.repeat(101)})).rejects.toThrow('q can only be up to 100 characters');
+      await expect(service.list('w1', {q: ['a'] as any})).rejects.toThrow('q must be text');
     });
   });
 
@@ -148,6 +160,37 @@ describe('EntriesService', () => {
 
       expect(result.name).toBe('New');
       expect(client.query.mock.calls[2][1]).toEqual(['w1', 'e1', 'updated', 'New', 'u1']);
+    });
+
+    it('updates links to the entry in other descriptions when it is renamed', async () => {
+      const {service, db, client} = createService();
+
+      client.query
+        .mockResolvedValueOnce({rows: [{name: 'Old (Keep)', type_id: null, fields: {}, version: 1}]})
+        .mockResolvedValueOnce({rows: [{name: 'New \\ Keep'}]})
+        .mockResolvedValue({rows: []});
+      db.query.mockResolvedValue({rows: [{id: 'e1', name: 'New', version: 2}]});
+
+      await service.update('w1', 'e1', 'u1', {version: 1, name: 'New \\ Keep'});
+
+      const sync = client.query.mock.calls[3];
+
+      expect(sync[0]).toContain('regexp_replace');
+      expect(sync[1]).toEqual(['w1', '\\[\\[Old \\(Keep\\)\\]\\]', '[[New \\\\ Keep]]', 'e1', 'Old (Keep)']);
+    });
+
+    it('leaves other descriptions alone when the name is unchanged', async () => {
+      const {service, db, client} = createService();
+
+      client.query
+        .mockResolvedValueOnce({rows: [{name: 'Same', type_id: null, fields: {}, version: 1}]})
+        .mockResolvedValueOnce({rows: [{name: 'Same'}]})
+        .mockResolvedValue({rows: []});
+      db.query.mockResolvedValue({rows: [{id: 'e1', name: 'Same', version: 2}]});
+
+      await service.update('w1', 'e1', 'u1', {version: 1, description: 'About'});
+
+      expect(client.query).toHaveBeenCalledTimes(3);
     });
   });
 

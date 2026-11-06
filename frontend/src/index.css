@@ -712,3 +712,204 @@ button.slide:hover {
 .comment-body {
   white-space: pre-wrap;
 }
+
+.chip .auto {
+  padding-right: 0.35rem;
+  color: #555555;
+  font-size: 0.85rem;
+}
+
+.rules > * + * {
+  margin-top: 0.6rem;
+}
+
+.conditions li {
+  padding: 0.3rem 0.4rem;
+  border-left: 3px solid transparent;
+}
+
+.conditions li.broken {
+  border-left-color: #b00020;
+  background: #fbeaea;
+}
+
+.compact li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.9rem;
+}
+
+.compact li:hover {
+  background: #f3f3f3;
+}
+
+.compact li.focus {
+  background: #fff5c2;
+}
+
+.rule-preview {
+  max-height: 20rem;
+  overflow-y: auto;
+  padding: 0.5rem;
+  border: 1px solid #b5b5b5;
+}
+
+.rule-preview > * + * {
+  margin-top: 0.5rem;
+}
+
+.missing-link {
+  color: #ff0000;
+  text-decoration: underline dotted;
+}
+
+.search-box > * + * {
+  margin-top: 0.5rem;
+}
+
+.search-box .line input[type="text"] {
+  flex: 1 1 14rem;
+  width: auto;
+  max-width: 24rem;
+}
+
+.advanced {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #d0d0d0;
+}
+
+.advanced > * + * {
+  margin-top: 0.3rem;
+}
+
+.adv-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+}
+
+.adv-label {
+  flex: 0 0 4.5rem;
+  color: #555555;
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+
+.adv-row .tag-filter {
+  flex: 1;
+  gap: 0.25rem;
+}
+
+.adv-row .tag-filter button {
+  padding: 0 0.45rem;
+  font-size: 0.8rem;
+}
+
+select.small {
+  width: auto;
+  padding: 0.05rem 0.3rem;
+  font-size: 0.85rem;
+}
+
+.adv-row .chip {
+  font-size: 0.8rem;
+}
+
+.hint {
+  font-size: 0.8rem;
+}
+
+.adv-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem 0.75rem;
+  align-items: start;
+}
+
+.adv-cell {
+  min-width: 0;
+}
+
+.adv-cell .adv-label {
+  display: block;
+  margin-bottom: 0.15rem;
+}
+
+.pick-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 2rem;
+  padding: 0.2rem 0.3rem;
+  border: 1px solid #999999;
+}
+
+.pick-box .chip {
+  font-size: 0.8rem;
+}
+
+.typeahead {
+  position: relative;
+  flex: 1 1 5rem;
+  min-width: 5rem;
+}
+
+.typeahead input[type="text"] {
+  width: 100%;
+  padding: 0.05rem 0.2rem;
+  border: none;
+  font-size: 0.85rem;
+}
+
+.typeahead input[type="text"]:focus-visible {
+  outline: none;
+}
+
+.typeahead-list {
+  position: absolute;
+  z-index: 10;
+  top: 100%;
+  left: 0;
+  min-width: 100%;
+  max-height: 14rem;
+  overflow-y: auto;
+  border: 1px solid #777777;
+  background: #ffffff;
+}
+
+.typeahead-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.typeahead-list li.active {
+  background: #eeeeee;
+}
+
+@media (max-width: 40rem) {
+  .adv-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.relation-controls {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.link-textarea {
+  position: relative;
+}

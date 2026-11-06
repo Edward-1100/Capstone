@@ -25,11 +25,8 @@ export class RelationshipsService {
        WHERE r.world_id = $1
          AND ($2::uuid IS NULL OR r.relationship_type_id = $2::uuid)
          AND NOT (
-           ((rt.from_any OR EXISTS (SELECT 1 FROM relationship_type_ends e WHERE e.relationship_type_id = rt.id AND e.side = 'from' AND e.entry_type_id = f.type_id))
-            AND (rt.to_any OR EXISTS (SELECT 1 FROM relationship_type_ends e WHERE e.relationship_type_id = rt.id AND e.side = 'to' AND e.entry_type_id = t.type_id)))
-           OR (rt.is_symmetric
-            AND (rt.from_any OR EXISTS (SELECT 1 FROM relationship_type_ends e WHERE e.relationship_type_id = rt.id AND e.side = 'from' AND e.entry_type_id = t.type_id))
-            AND (rt.to_any OR EXISTS (SELECT 1 FROM relationship_type_ends e WHERE e.relationship_type_id = rt.id AND e.side = 'to' AND e.entry_type_id = f.type_id)))
+           (rt.from_any OR EXISTS (SELECT 1 FROM relationship_type_ends e WHERE e.relationship_type_id = rt.id AND e.side = 'from' AND e.entry_type_id = f.type_id))
+           AND (rt.to_any OR EXISTS (SELECT 1 FROM relationship_type_ends e WHERE e.relationship_type_id = rt.id AND e.side = 'to' AND e.entry_type_id = t.type_id))
          )
        ORDER BY lower(rt.name), lower(f.name), lower(t.name)
        LIMIT $3`,
@@ -47,7 +44,7 @@ export class RelationshipsService {
     }
 
     const result = await this.db.query(
-      `SELECT r.id, rt.id AS "typeId", rt.name AS "typeName", rt.is_symmetric AS symmetric,
+      `SELECT r.id, rt.id AS "typeId", rt.name AS "typeName",
               CASE WHEN r.from_entry_id = $1 THEN 'out' ELSE 'in' END AS direction,
               o.id AS "otherId", o.name AS "otherName", ot.name AS "otherTypeName"
        FROM relationships r
@@ -71,7 +68,7 @@ export class RelationshipsService {
       }
 
       const found = await client.query(
-        'SELECT name, is_symmetric AS symmetric, from_any AS "fromAny", to_any AS "toAny" FROM relationship_types WHERE id = $1 AND world_id = $2',
+        'SELECT name, from_any AS "fromAny", to_any AS "toAny" FROM relationship_types WHERE id = $1 AND world_id = $2',
         [dto.typeId, worldId],
       );
       const type = found.rows[0];
@@ -98,17 +95,15 @@ export class RelationshipsService {
       const fromIds = ends.rows.filter((end) => end.side === 'from').map((end) => end.entryTypeId);
       const toIds = ends.rows.filter((end) => end.side === 'to').map((end) => end.entryTypeId);
       const forward = allows(type.fromAny, fromIds, from.typeId) && allows(type.toAny, toIds, to.typeId);
-      const backward = type.symmetric && allows(type.fromAny, fromIds, to.typeId) && allows(type.toAny, toIds, from.typeId);
 
-      if (!forward && !backward) {
+      if (!forward) {
         throw new BadRequestException(`${type.name} can not connect ${from.typeName ?? 'entries without a type'} to ${to.typeName ?? 'entries without a type'}`);
       }
 
       const existing = await client.query(
         `SELECT 1 FROM relationships
-         WHERE relationship_type_id = $1
-           AND ((from_entry_id = $2 AND to_entry_id = $3) OR ($4::boolean AND from_entry_id = $3 AND to_entry_id = $2))`,
-        [dto.typeId, dto.fromEntryId, dto.toEntryId, type.symmetric],
+         WHERE relationship_type_id = $1 AND from_entry_id = $2 AND to_entry_id = $3`,
+        [dto.typeId, dto.fromEntryId, dto.toEntryId],
       );
 
       if (existing.rows[0]) {

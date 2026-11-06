@@ -27,3 +27,23 @@ export function addEntryTagRequest(worldId, entryId, tagId) {
 export function removeEntryTagRequest(worldId, entryId, tagId) {
   return apiFetch(`/worlds/${worldId}/entries/${entryId}/tags/${tagId}`, {method: 'DELETE'});
 }
+
+export function getTagRuleRequest(worldId, tagId) {
+  return apiFetch(`/worlds/${worldId}/tags/${tagId}/rule`);
+}
+
+export function saveTagRuleRequest(worldId, tagId, data) {
+  return apiFetch(`/worlds/${worldId}/tags/${tagId}/rule`, {method: 'PUT', body: JSON.stringify(data)});
+}
+
+export function previewTagRuleRequest(worldId, tagId) {
+  return apiFetch(`/worlds/${worldId}/tags/${tagId}/rule/entries`);
+}
+
+export function setTagRuleEntryRequest(worldId, tagId, entryId, exclude) {
+  return apiFetch(`/worlds/${worldId}/tags/${tagId}/rule/entries/${entryId}`, {method: 'PUT', body: JSON.stringify({exclude})});
+}
+
+export function clearTagRuleEntryRequest(worldId, tagId, entryId) {
+  return apiFetch(`/worlds/${worldId}/tags/${tagId}/rule/entries/${entryId}`, {method: 'DELETE'});
+}

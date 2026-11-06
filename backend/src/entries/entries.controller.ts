@@ -14,8 +14,20 @@ export class EntriesController {
 
   @Get()
   @UseGuards(OptionalJwtAuthGuard, WorldRoleGuard)
-  list(@Param('id') id: string, @Query('typeId') typeId?: string, @Query('tags') tags?: string | string[], @Query('excludeTags') excludeTags?: string | string[], @Query('tagMode') tagMode?: string) {
-    return this.entries.list(id, {typeId, tags, excludeTags, tagMode});
+  list(
+    @Param('id') id: string,
+    @Query('q') q?: string,
+    @Query('types') types?: string | string[],
+    @Query('excludeTypes') excludeTypes?: string | string[],
+    @Query('tags') tags?: string | string[],
+    @Query('excludeTags') excludeTags?: string | string[],
+    @Query('tagMode') tagMode?: string,
+    @Query('inside') inside?: string | string[],
+    @Query('excludeInside') excludeInside?: string | string[],
+    @Query('relations') relations?: string | string[],
+    @Query('excludeRelations') excludeRelations?: string | string[],
+  ) {
+    return this.entries.list(id, {q, types, excludeTypes, tags, excludeTags, tagMode, inside, excludeInside, relations, excludeRelations});
   }
 
   @Get('parent-options')

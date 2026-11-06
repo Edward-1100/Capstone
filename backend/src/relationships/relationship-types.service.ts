@@ -12,7 +12,7 @@ export class RelationshipTypesService {
 
   private async load(client: Queryable, worldId: string, typeId?: string) {
     const types = await client.query(
-      `SELECT rt.id, rt.name, rt.description, rt.is_symmetric AS symmetric, rt.from_any AS "fromAny", rt.to_any AS "toAny", rt.created_at AS "createdAt",
+      `SELECT rt.id, rt.name, rt.description, rt.from_any AS "fromAny", rt.to_any AS "toAny", rt.created_at AS "createdAt",
               (SELECT count(*)::int
                FROM relationships r
                JOIN active_entries f ON f.id = r.from_entry_id
@@ -67,23 +67,6 @@ export class RelationshipTypesService {
     }
   }
 
-  private async syncSymmetric(client: Queryable, typeId: string) {
-    await client.query(
-      `UPDATE relationship_types rt
-       SET is_symmetric = rt.from_any = rt.to_any
-         AND NOT EXISTS (
-           SELECT 1 FROM relationship_type_ends a
-           WHERE a.relationship_type_id = rt.id
-             AND NOT EXISTS (
-               SELECT 1 FROM relationship_type_ends b
-               WHERE b.relationship_type_id = rt.id AND b.side <> a.side AND b.entry_type_id = a.entry_type_id
-             )
-         )
-       WHERE rt.id = $1`,
-      [typeId],
-    );
-  }
-
   private rethrow(err: any): never {
     if (err.code === '23505') {
       throw new ConflictException('A relationship type with that name already exists');
@@ -106,14 +89,13 @@ export class RelationshipTypesService {
         const fromAny = dto.fromAny ?? true;
         const toAny = dto.toAny ?? true;
         const result = await client.query(
-          'INSERT INTO relationship_types (world_id, name, description, is_symmetric, from_any, to_any) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-          [worldId, dto.name.trim(), dto.description ?? '', false, fromAny, toAny],
+          'INSERT INTO relationship_types (world_id, name, description, from_any, to_any) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+          [worldId, dto.name.trim(), dto.description ?? '', fromAny, toAny],
         );
         const typeId = result.rows[0].id;
 
         await this.saveEnds(client, worldId, typeId, 'from', fromAny, dto.fromTypeIds);
         await this.saveEnds(client, worldId, typeId, 'to', toAny, dto.toTypeIds);
-        await this.syncSymmetric(client, typeId);
 
         return (await this.load(client, worldId, typeId))[0];
       });
@@ -149,7 +131,6 @@ export class RelationshipTypesService {
 
         await this.saveEnds(client, worldId, typeId, 'from', dto.fromAny, dto.fromTypeIds);
         await this.saveEnds(client, worldId, typeId, 'to', dto.toAny, dto.toTypeIds);
-        await this.syncSymmetric(client, typeId);
 
         const invalid = await this.relationships.findInvalid(client, worldId, typeId);
 

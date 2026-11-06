@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { RelationshipsService } from './relationships.service';
 
 const DTO = {typeId: 'rt1', fromEntryId: 'e1', toEntryId: 'e2'};
@@ -11,7 +11,7 @@ function createService() {
 }
 
 function setup(client: any, options: any) {
-  const type = Object.assign({name: 'Member of', symmetric: false, fromAny: false, toAny: false}, options.type);
+  const type = Object.assign({name: 'Member of', fromAny: false, toAny: false}, options.type);
 
   client.query
     .mockResolvedValueOnce({rows: []})
@@ -88,24 +88,6 @@ describe('RelationshipsService', () => {
       expect(client.query).toHaveBeenCalledTimes(6);
     });
 
-    it('allows a symmetric type in either direction', async () => {
-      const {service, client} = createService();
-
-      setup(client, {type: {name: 'Friend', symmetric: true}, entries: [CHARACTER, FACTION], ends: ENDS});
-
-      await service.create('w1', 'u1', {typeId: 'rt1', fromEntryId: 'e2', toEntryId: 'e1'});
-
-      expect(client.query).toHaveBeenCalledTimes(6);
-    });
-
-    it('rejects a pair that matches neither direction for a symmetric type', async () => {
-      const {service, client} = createService();
-
-      setup(client, {type: {name: 'Friend', symmetric: true}, entries: [FACTION, {id: 'e1', typeId: 'tf', typeName: 'Factions'}], ends: ENDS});
-
-      await expect(service.create('w1', 'u1', DTO)).rejects.toThrow(BadRequestException);
-    });
-
     it('returns a conflict when the relationship already exists', async () => {
       const {service, client} = createService();
 
@@ -113,16 +95,6 @@ describe('RelationshipsService', () => {
 
       await expect(service.create('w1', 'u1', DTO)).rejects.toThrow(ConflictException);
       expect(client.query).toHaveBeenCalledTimes(5);
-    });
-
-    it('also checks the reverse pair for a symmetric type', async () => {
-      const {service, client} = createService();
-
-      setup(client, {type: {name: 'Friend', symmetric: true, fromAny: true, toAny: true}, entries: [CHARACTER, FACTION]});
-
-      await service.create('w1', 'u1', DTO);
-
-      expect(client.query.mock.calls[4][1]).toEqual(['rt1', 'e1', 'e2', true]);
     });
   });
 

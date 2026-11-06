@@ -4,7 +4,6 @@ CREATE TABLE relationship_types (
   world_id UUID NOT NULL REFERENCES worlds (id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   description TEXT NOT NULL DEFAULT '',
-  is_symmetric BOOLEAN NOT NULL DEFAULT false,
   from_any BOOLEAN NOT NULL DEFAULT true,
   to_any BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

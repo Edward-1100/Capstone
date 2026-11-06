@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { deleteTagRequest, updateTagRequest } from '../api/tags';
 import { countLabel } from '../utils/text';
 import TagForm from './TagForm';
+import TagRules from './TagRules';
 import TagSwatch from './TagSwatch';
 
-export default function TagCell({worldId, tag, canEdit, onChanged}) {
-  const [mode, setMode] = useState('view');
+export default function TagCell({worldId, tag, canEdit, focus, focusEntryId, onChanged}) {
+  const [mode, setMode] = useState(focus ? 'rules' : 'view');
   const [confirmName, setConfirmName] = useState('');
   const [error, setError] = useState('');
 
@@ -41,6 +42,20 @@ export default function TagCell({worldId, tag, canEdit, onChanged}) {
     );
   }
 
+  if (mode === 'rules') {
+    return (
+      <li className="cell open">
+        <div className="line">
+          <h3><TagSwatch color={tag.color}/>{tag.name}</h3>
+
+          <button type="button" onClick={close}>Close</button>
+        </div>
+
+        <TagRules worldId={worldId} tag={tag} canEdit={canEdit} focusEntryId={focusEntryId} onChanged={onChanged}/>
+      </li>
+    );
+  }
+
   if (mode === 'delete') {
     return (
       <li className="cell open">
@@ -62,14 +77,14 @@ export default function TagCell({worldId, tag, canEdit, onChanged}) {
     <li className="cell">
       <div className="cell-name"><TagSwatch color={tag.color}/>{tag.name}</div>
 
-      <div className="cell-info">{countLabel(tag.entryCount, 'entry', 'entries')}</div>
+      <div className="cell-info">{countLabel(tag.entryCount, 'entry', 'entries')}{tag.hasRule ? (tag.paused ? ', rule paused' : ', has a rule') : ''}</div>
 
-      {canEdit && (
-        <div className="cell-actions">
-          <button type="button" onClick={() => setMode('edit')}>Edit</button>
-          <button type="button" className="danger" onClick={() => setMode('delete')}>Delete</button>
-        </div>
-      )}
+      <div className="cell-actions">
+        <button type="button" onClick={() => setMode('rules')}>{canEdit ? 'Rule' : 'View rule'}</button>
+
+        {canEdit && <button type="button" onClick={() => setMode('edit')}>Edit</button>}
+        {canEdit && <button type="button" className="danger" onClick={() => setMode('delete')}>Delete</button>}
+      </div>
     </li>
   );
 }

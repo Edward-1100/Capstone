@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { addEntryTagRequest, listEntryTagsRequest, listTagsRequest, removeEntryTagRequest } from '../api/tags';
 import TagSwatch from './TagSwatch';
+import Typeahead from './Typeahead';
 
 export default function EntryTags({worldId, entryId, canEdit}) {
   const [entryTags, setEntryTags] = useState(null);
   const [allTags, setAllTags] = useState([]);
-  const [tagId, setTagId] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -24,15 +24,13 @@ export default function EntryTags({worldId, entryId, canEdit}) {
       .catch((err) => setError(err.message));
   }, [worldId, entryId, canEdit]);
 
-  const available = entryTags ? allTags.filter((tag) => !entryTags.some((item) => item.id === tag.id)) : [];
+  const available = entryTags ? allTags.filter((tag) => !entryTags.some((item) => item.id === tag.id && !item.auto)) : [];
 
-  async function handleAdd(event) {
-    event.preventDefault();
+  async function handleAdd(tagId) {
     setError('');
 
     try {
       setEntryTags(await addEntryTagRequest(worldId, entryId, tagId));
-      setTagId('');
     } catch (err) {
       setError(err.message);
     }
@@ -65,19 +63,14 @@ export default function EntryTags({worldId, entryId, canEdit}) {
           <span key={tag.id} className="chip">
             <TagSwatch color={tag.color}/>{tag.name}
 
-            {canEdit && <button type="button" aria-label={`Remove ${tag.name}`} onClick={() => handleRemove(tag.id)}>&times;</button>}
+            {tag.auto && <Link className="auto" to={`/worlds/${worldId}/tags?tag=${tag.id}&entry=${entryId}`}>auto</Link>}
+
+            {canEdit && !tag.auto && <button type="button" aria-label={`Remove ${tag.name}`} onClick={() => handleRemove(tag.id)}>&times;</button>}
           </span>
         ))}
 
         {canEdit && available.length > 0 && (
-          <form className="inline-form" onSubmit={handleAdd}>
-            <select aria-label="Add a tag" value={tagId} onChange={(e) => setTagId(e.target.value)}>
-              <option value="">Add a tag</option>
-              {available.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
-            </select>
-
-            <button type="submit" disabled={!tagId}>Add</button>
-          </form>
+          <Typeahead options={available.map((tag) => ({id: tag.id, label: tag.name, count: tag.entryCount}))} onPick={handleAdd} placeholder="Add a tag" label="Add a tag"/>
         )}
       </div>
 

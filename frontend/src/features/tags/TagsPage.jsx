@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { createTagRequest, listTagsRequest } from '../../api/tags';
 import { getWorldRequest } from '../../api/worlds';
 import ItemGrid from '../../components/ItemGrid';
@@ -10,6 +10,9 @@ import TagForm from '../../components/TagForm';
 export default function TagsPage() {
   const {id} = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const focusTagId = searchParams.get('tag') || '';
+  const focusEntryId = searchParams.get('entry') || '';
 
   const [world, setWorld] = useState(null);
   const [tags, setTags] = useState([]);
@@ -45,8 +48,8 @@ export default function TagsPage() {
   return (
     <Page crumbs={[{to: `/worlds/${id}`, label: world.name}, {label: 'Tags'}]}>
       <ItemGrid storageKey="view-tags" canEdit={canEdit} newLabel="New tag" adding={adding} onNew={() => setAdding(true)} addForm={addForm} empty={tags.length === 0} emptyText="No tags yet">
-        {tags.map((tag) => <TagCell key={tag.id} worldId={id} tag={tag} canEdit={canEdit} onChanged={reload}/>)}
+        {tags.map((tag) => <TagCell key={tag.id} worldId={id} tag={tag} canEdit={canEdit} focus={tag.id === focusTagId} focusEntryId={tag.id === focusTagId ? focusEntryId : ''} onChanged={reload}/>)}
       </ItemGrid>
     </Page>
   );
-}
+} 

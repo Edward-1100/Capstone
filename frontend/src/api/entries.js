@@ -1,22 +1,16 @@
 import { apiFetch } from './client';
 
+const LIST_KEYS = [['q', 'q'], ['types', 'types'], ['excludeTypes', 'excludeTypes'], ['tags', 'tags'], ['excludeTags', 'excludeTags'], ['tagMode', 'tagMode'], ['inside', 'inside'], ['excludeInside', 'excludeInside'], ['relations', 'relations'], ['excludeRelations', 'excludeRelations']];
+
 export function listEntriesRequest(worldId, filters = {}) {
   const params = new URLSearchParams();
 
-  if (filters.typeId) {
-    params.set('typeId', filters.typeId);
-  }
+  for (const [key, name] of LIST_KEYS) {
+    const value = filters[key];
 
-  if (filters.tags && filters.tags.length > 0) {
-    params.set('tags', filters.tags.join(','));
-  }
-
-  if (filters.excludeTags && filters.excludeTags.length > 0) {
-    params.set('excludeTags', filters.excludeTags.join(','));
-  }
-
-  if (filters.tagMode) {
-    params.set('tagMode', filters.tagMode);
+    if (Array.isArray(value) ? value.length > 0 : Boolean(value)) {
+      params.set(name, Array.isArray(value) ? value.join(',') : value);
+    }
   }
 
   const query = params.toString();
