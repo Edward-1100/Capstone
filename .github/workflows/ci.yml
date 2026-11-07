@@ -26,9 +26,45 @@ jobs:
           cache-dependency-path: backend/package-lock.json
 
       - run: npm ci
+      - run: npm run lint
       - run: npm run build
       - run: npm test
       - run: npm run test:e2e
+
+  #check that migrations go up, down, and up again on an empty database
+  migrations:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/worldbuilder
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: worldbuilder
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+      - run: npx node-pg-migrate up -m src/database/migrations
+      - run: npx node-pg-migrate down 100 -m src/database/migrations
+      - run: npx node-pg-migrate up -m src/database/migrations
 
   #check frontend
   frontend:
@@ -47,4 +83,5 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - run: npm ci
+      - run: npm run lint
       - run: npm run build
