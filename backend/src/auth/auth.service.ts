@@ -18,6 +18,10 @@ export class AuthService {
 
       return this.issueToken(user);
     } catch (err: any) {
+      if (err.code === '23505' && err.constraint === 'users_username_lower_idx') {
+        throw new ConflictException('Username is already taken');
+      }
+
       if (err.code === '23505') {
         throw new ConflictException('Email is already registered');
       }

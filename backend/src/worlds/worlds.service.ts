@@ -55,7 +55,8 @@ export class WorldsService {
   async listForUser(userId: string) {
     const result = await this.db.query(
       `SELECT w.id, w.name, w.description, w.visibility, w.thumbnail_key AS "thumbnailKey",
-              w.created_at AS "createdAt", w.updated_at AS "updatedAt", m.role
+              w.created_at AS "createdAt", w.updated_at AS "updatedAt", m.role,
+              m.invited_role AS "pendingRole"
        FROM worlds w
        JOIN world_members m ON m.world_id = w.id
        WHERE m.user_id = $1
