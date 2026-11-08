@@ -913,3 +913,29 @@ select.small {
 .link-textarea {
   position: relative;
 }
+
+.worlds li {
+  flex-wrap: wrap;
+}
+
+.row-actions {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.member-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  padding: 0.25rem 0;
+}
+
+.member-list select {
+  width: auto;
+}
+
+.link-url {
+  word-break: break-all;
+}

@@ -66,6 +66,7 @@ export default function WorldPage() {
           <Link to={`/worlds/${world.id}/types`}>Entry types</Link>
           <Link to={`/worlds/${world.id}/relationship-types`}>Relationship types</Link>
           <Link to={`/worlds/${world.id}/tags`}>Tags</Link>
+          {world.role === 'owner' && <Link to={`/worlds/${world.id}/collaboration`}>Collaboration</Link>}
           {world.role === 'owner' && <Link to={`/worlds/${world.id}/edit`}>Edit world</Link>}
           {!user && <Link to="/login">Log in</Link>}
           <span className="muted">Maps, graph, timeline: coming soon</span>

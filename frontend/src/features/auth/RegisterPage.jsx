@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Page from '../../components/Page';
 import { useAuth } from '../../context/AuthContext';
 
 export default function RegisterPage() {
   const {register} = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -20,7 +21,7 @@ export default function RegisterPage() {
 
     try {
       await register(email, username, password);
-      navigate('/', {replace: true});
+      navigate(location.state?.from ?? '/', {replace: true});
     } catch (err) {
       setError(err.message);
     } finally {
@@ -56,7 +57,7 @@ export default function RegisterPage() {
           </div>
         </form>
 
-        <p>Already have an account? <Link to="/login">Log in</Link></p>
+        <p>Already have an account? <Link to="/login" state={location.state}>Log in</Link></p>
       </div>
     </Page>
   );

@@ -12,6 +12,9 @@ import TagsPage from './features/tags/TagsPage';
 import EntriesPage from './features/entries/EntriesPage';
 import NewEntryPage from './features/entries/NewEntryPage';
 import EntryPage from './features/entries/EntryPage';
+import CollaborationPage from './features/members/CollaborationPage';
+import BlockedUsersPage from './features/members/BlockedUsersPage';
+import JoinPage from './features/members/JoinPage';
 
 export default function App() {
   return (
@@ -34,11 +37,17 @@ export default function App() {
 
       <Route path="/worlds/:id/tags" element={<TagsPage/>}/>
 
+      <Route path="/worlds/:id/collaboration" element={<ProtectedRoute><CollaborationPage/></ProtectedRoute>}/>
+
       <Route path="/worlds/:id/entries" element={<EntriesPage/>}/>
 
       <Route path="/worlds/:id/entries/new" element={<ProtectedRoute><NewEntryPage/></ProtectedRoute>}/>
 
       <Route path="/worlds/:id/entries/:entryId" element={<EntryPage/>}/>
+
+      <Route path="/blocked" element={<ProtectedRoute><BlockedUsersPage/></ProtectedRoute>}/>
+
+      <Route path="/join/:token" element={<ProtectedRoute><JoinPage/></ProtectedRoute>}/>
 
       <Route path="*" element={<Navigate to="/" replace/>}/>
     </Routes>
