@@ -3,9 +3,10 @@ import { DatabaseService } from '../database/database.service';
 import { NestingService } from '../nesting/nesting.service';
 import { DeleteEntryTypeDto } from './dto/delete-entry-type.dto';
 import { EntryTypeDto } from './dto/entry-type.dto';
+import { MappableDto } from './dto/mappable.dto';
 import { NestingDto } from './dto/nesting.dto';
 
-const TYPE_COLUMNS = `id, name, nestable, any_parent AS "anyParent", created_at AS "createdAt"`;
+const TYPE_COLUMNS = 'id, name, nest_mode AS "nestMode", mappable, created_at AS "createdAt"';
 
 @Injectable()
 export class EntryTypesService {
@@ -13,7 +14,7 @@ export class EntryTypesService {
 
   async list(worldId: string) {
     const result = await this.db.query(
-      `SELECT t.id, t.name, t.nestable, t.any_parent AS "anyParent", t.created_at AS "createdAt",
+      `SELECT t.id, t.name, t.nest_mode AS "nestMode", t.mappable, t.created_at AS "createdAt",
               (SELECT count(*)::int FROM active_entries e WHERE e.type_id = t.id) AS "entryCount"
        FROM entry_types t
        WHERE t.world_id = $1
@@ -90,31 +91,28 @@ export class EntryTypesService {
         throw new NotFoundException('Entry type not found');
       }
 
-      if (dto.parentTypeIds !== undefined && dto.parentTypeIds.length > 0) {
-        const valid = await client.query(
-          'SELECT id FROM entry_types WHERE world_id = $1 AND id = ANY($2::uuid[]) AND (nestable OR ($3::boolean AND id = $4::uuid))',
-          [worldId, dto.parentTypeIds, dto.nestable, typeId],
-        );
+      const chosen = dto.parentTypeIds ?? [];
 
-        if (valid.rows.length !== dto.parentTypeIds.length) {
-          throw new BadRequestException('Choose types that can be nested');
+      if (dto.mode === 'chosen' && chosen.length === 0) {
+        throw new BadRequestException('Choose at least one type');
+      }
+
+      if (dto.mode === 'chosen') {
+        const valid = await client.query('SELECT id FROM entry_types WHERE world_id = $1 AND id = ANY($2::uuid[])', [worldId, chosen]);
+
+        if (valid.rows.length !== chosen.length) {
+          throw new BadRequestException('Choose types from this world');
         }
       }
 
-      await client.query(
-        'UPDATE entry_types SET nestable = $3, any_parent = COALESCE($4::boolean, any_parent), updated_at = now() WHERE id = $1 AND world_id = $2',
-        [typeId, worldId, dto.nestable, dto.anyParent ?? null],
-      );
+      await client.query('UPDATE entry_types SET nest_mode = $3, updated_at = now() WHERE id = $1 AND world_id = $2', [typeId, worldId, dto.mode]);
+      await client.query('DELETE FROM type_parent_rules WHERE type_id = $1', [typeId]);
 
-      if (dto.parentTypeIds !== undefined) {
-        await client.query('DELETE FROM type_parent_rules WHERE type_id = $1', [typeId]);
-
-        if (dto.parentTypeIds.length > 0) {
-          await client.query(
-            'INSERT INTO type_parent_rules (world_id, type_id, parent_type_id) SELECT $1, $2, unnest($3::uuid[])',
-            [worldId, typeId, dto.parentTypeIds],
-          );
-        }
+      if (dto.mode === 'chosen') {
+        await client.query(
+          'INSERT INTO type_parent_rules (world_id, type_id, parent_type_id) SELECT $1, $2, unnest($3::uuid[])',
+          [worldId, typeId, chosen],
+        );
       }
 
       const links = await this.nesting.brokenLinks(client, worldId);
@@ -124,6 +122,19 @@ export class EntryTypesService {
 
       return Object.assign({}, type.rows[0], {parentTypeIds: rules.rows.map((rule) => rule.parentTypeId), clearedLinks: cleared});
     });
+  }
+
+  async setMappable(worldId: string, typeId: string, dto: MappableDto) {
+    const result = await this.db.query(
+      `UPDATE entry_types SET mappable = $3, updated_at = now() WHERE id = $1 AND world_id = $2 RETURNING ${TYPE_COLUMNS}`,
+      [typeId, worldId, dto.mappable],
+    );
+
+    if (!result.rows[0]) {
+      throw new NotFoundException('Entry type not found');
+    }
+
+    return result.rows[0];
   }
 
   remove(worldId: string, typeId: string, dto: DeleteEntryTypeDto) {

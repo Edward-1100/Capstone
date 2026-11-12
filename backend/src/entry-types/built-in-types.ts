@@ -1,6 +1,6 @@
 export const BUILT_IN_TYPES = [
-  {name: 'Characters', nestable: false},
-  {name: 'Locations', nestable: true},
-  {name: 'Factions', nestable: false},
-  {name: 'Events', nestable: false},
+  {name: 'Characters', nestMode: 'none', mappable: true},
+  {name: 'Locations', nestMode: 'own', mappable: true},
+  {name: 'Factions', nestMode: 'none', mappable: false},
+  {name: 'Events', nestMode: 'none', mappable: true},
 ];

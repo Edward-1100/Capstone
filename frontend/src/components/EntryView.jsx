@@ -6,13 +6,14 @@ import { formatValue } from '../utils/fields';
 import EntryComments from './EntryComments';
 import EntryGallery from './EntryGallery';
 import EntryNotes from './EntryNotes';
+import EntryPlace from './EntryPlace';
 import EntryRelationships from './EntryRelationships';
 import EntryTags from './EntryTags';
 import FieldInput from './FieldInput';
 import LinkedText from './LinkedText';
 import LinkTextarea from './LinkTextarea';
 
-export default function EntryView({worldId, entryId, role, onDeleted}) {
+export default function EntryView({worldId, entryId, role, pageLink, onDeleted, onChanged}) {
   const canEdit = role === 'owner' || role === 'editor';
 
   const [entry, setEntry] = useState(null);
@@ -64,6 +65,17 @@ export default function EntryView({worldId, entryId, role, onDeleted}) {
     setUnlink(null);
   }
 
+  function notifyChanged() {
+    if (onChanged) {
+      onChanged();
+    }
+  }
+
+  function handleGalleryChange(data) {
+    setEntry(data);
+    notifyChanged();
+  }
+
   async function save(changes) {
     setError('');
     setConflict(false);
@@ -72,6 +84,7 @@ export default function EntryView({worldId, entryId, role, onDeleted}) {
       setEntry(await updateEntryRequest(worldId, entryId, Object.assign({version: entry.version}, changes)));
       setUnlink(null);
       setEditing('');
+      notifyChanged();
     } catch (err) {
       if (err.status === 409 && err.data && err.data.links) {
         setUnlink(err.data);
@@ -198,6 +211,8 @@ export default function EntryView({worldId, entryId, role, onDeleted}) {
             <button type="button" onClick={cancelEdit}>Cancel</button>
           </form>
         )}
+
+        <EntryPlace worldId={worldId} entry={entry} types={types} canEdit={canEdit} editing={editing} onEdit={() => startEdit('parent')} onCancel={cancelEdit} onSave={(parentId) => save({parentId})}/>
       </div>
 
       {(error || conflict || unlink) && (
@@ -220,7 +235,7 @@ export default function EntryView({worldId, entryId, role, onDeleted}) {
         </div>
       )}
 
-      <EntryGallery worldId={worldId} entryId={entryId} entryName={entry.name} images={entry.images} canEdit={canEdit} onChange={setEntry}/>
+      <EntryGallery worldId={worldId} entryId={entryId} entryName={entry.name} images={entry.images} canEdit={canEdit} onChange={handleGalleryChange}/>
 
       <div>
         {editing !== 'description' && <div className="description">{entry.description ? <LinkedText worldId={worldId} text={entry.description} entries={allEntries}/> : <span className="muted">No description yet</span>}</div>}
@@ -284,7 +299,9 @@ export default function EntryView({worldId, entryId, role, onDeleted}) {
 
       <EntryComments worldId={worldId} entryId={entryId} role={role}/>
 
-      {canEdit && (
+      {pageLink && <div><Link to={pageLink}>Open as a page</Link></div>}
+
+      {!pageLink && canEdit && (
         <div>
           {!confirmingDelete && <button type="button" className="danger" onClick={() => setConfirmingDelete(true)}>Delete entry</button>}
 

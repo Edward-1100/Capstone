@@ -1,12 +1,10 @@
-import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsOptional, IsUUID } from 'class-validator';
+import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsIn, IsOptional, IsUUID } from 'class-validator';
+
+export const NEST_MODES = ['none', 'chosen', 'all', 'own'];
 
 export class NestingDto {
-  @IsBoolean({message: 'nestable must be true or false'})
-  nestable: boolean;
-
-  @IsOptional()
-  @IsBoolean({message: 'anyParent must be true or false'})
-  anyParent?: boolean;
+  @IsIn(NEST_MODES, {message: 'mode must be none, chosen, all, or own'})
+  mode: string;
 
   @IsOptional()
   @IsArray({message: 'parentTypeIds must be a list'})

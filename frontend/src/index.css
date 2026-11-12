@@ -939,3 +939,432 @@ select.small {
 .link-url {
   word-break: break-all;
 }
+
+.map-page {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  overflow: hidden;
+  background: #1a1a1a;
+  color: #f2f2f2;
+}
+
+.map-loading {
+  margin: 0;
+  padding: 1rem;
+}
+
+.map-view {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+.map-stage {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  overscroll-behavior: contain;
+}
+
+.map-stage.dragging {
+  cursor: grabbing;
+}
+
+.map-stage.placing {
+  cursor: crosshair;
+}
+
+.map-stage.placing .map-marker:not(.draggable) {
+  pointer-events: none;
+}
+
+.map-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+
+.map-world.loading {
+  visibility: hidden;
+}
+
+.map-world img {
+  display: block;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+}
+
+.map-marker {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  background: none;
+  line-height: 0;
+  cursor: pointer;
+  transform-origin: 50% 100%;
+}
+
+.map-marker:hover {
+  background: none;
+}
+
+.map-marker.draggable {
+  touch-action: none;
+  cursor: grab;
+}
+
+.map-marker.moving {
+  z-index: 2;
+  cursor: grabbing;
+}
+
+.map-pin {
+  display: block;
+}
+
+.map-glass {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid #444444;
+  border-radius: 8px;
+  color: #f2f2f2;
+}
+
+.map-glass::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: #111111;
+  opacity: 0.85;
+  backdrop-filter: blur(8px);
+}
+
+.map-top {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 20;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  pointer-events: none;
+}
+
+.map-top > * {
+  pointer-events: auto;
+}
+
+.map-top.shifted {
+  right: calc(min(28rem, 100%) + 12px);
+}
+
+.map-placing button {
+  flex-shrink: 0;
+}
+
+.map-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+}
+
+.map-placing {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+}
+
+.map-zoom {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  z-index: 20;
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+}
+
+.map-notice {
+  position: absolute;
+  top: 64px;
+  left: 12px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+}
+
+.map-empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 20;
+  width: min(32rem, calc(100% - 24px));
+  padding: 1rem;
+  transform: translate(-50%, -50%);
+}
+
+.map-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  width: min(28rem, 100%);
+  border-width: 0 0 0 1px;
+  border-radius: 0;
+  animation: map-slide 0.2s ease-out;
+}
+
+@keyframes map-slide {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+.drawer-scroll {
+  box-sizing: border-box;
+  height: 100%;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.drawer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.drawer-body fieldset {
+  border: 1px solid #666666;
+}
+
+.drawer-body label {
+  display: block;
+}
+
+.current-map {
+  font-weight: bold;
+}
+
+.pin-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.pin-images button img {
+  display: block;
+  width: 2.5rem;
+  height: 2.5rem;
+  object-fit: cover;
+}
+
+.pin-images button.on {
+  outline: 2px solid #9ec5ff;
+}
+
+.map-glass a {
+  color: #9ec5ff;
+}
+
+.map-glass h1,
+.map-glass h2 {
+  color: #f2f2f2;
+}
+
+.map-glass .drawer-scroll > * + * {
+  margin-top: 1.5rem;
+}
+
+.map-bar select {
+  width: auto;
+  min-width: 9rem;
+  max-width: 14rem;
+}
+
+.map-bar .typeahead {
+  flex: 0 1 14rem;
+  min-width: 8rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #8a8a8a;
+  background: #1c1c1c;
+}
+
+.map-glass .muted,
+.map-glass .facts dt,
+.map-glass .comment .by {
+  color: #b5b5b5;
+}
+
+.map-glass .panel {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.map-glass button,
+.map-glass .button {
+  border-color: #8a8a8a;
+  background: #262626;
+  color: #f2f2f2;
+}
+
+.map-glass button:hover {
+  background: #3a3a3a;
+}
+
+.map-glass button:disabled {
+  color: #888888;
+}
+
+.map-glass button.danger {
+  border-color: #e57373;
+  color: #ff9a9a;
+}
+
+.map-glass .typeahead input[type="text"] {
+  border: 0;
+  background: none;
+}
+
+.map-glass input[type="text"],
+.map-glass input[type="file"],
+.map-glass select,
+.map-glass textarea,
+.map-glass .tagbox {
+  border-color: #8a8a8a;
+  background: #1c1c1c;
+  color: #f2f2f2;
+}
+
+.map-glass [role="alert"] {
+  color: #ff9a9a;
+}
+
+.map-glass .chip {
+  border-color: #8a8a8a;
+  background: #262626;
+}
+
+.map-glass .typeahead-list {
+  border-color: #8a8a8a;
+  background: #1c1c1c;
+}
+
+.map-glass .typeahead-list li.active {
+  background: #333333;
+}
+
+.map-glass .slide.center {
+  background: #262626;
+}
+
+@media (max-width: 40rem) {
+  .map-top {
+    flex-direction: column;
+  }
+
+  .map-bar {
+    flex-wrap: wrap;
+  }
+
+  .map-drawer {
+    width: 100%;
+  }
+}
+
+.pin-head {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.pin-head .title {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.pin-menu {
+  gap: 1.5rem;
+}
+
+.pin-menu .pin-color {
+  gap: 0.75rem;
+}
+
+.pin-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.drawer-body .pin-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.pin-field input[type="range"] {
+  flex: 0 1 12rem;
+}
+
+.nest-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  border: 1px solid #8a8a8a;
+  border-radius: 6px;
+  background: #1c1c1c;
+}
+
+.nest-editor h3 {
+  margin: 0;
+}
+
+.nest-editor form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.nest-editor fieldset {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #666666;
+}
