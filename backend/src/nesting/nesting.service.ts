@@ -13,10 +13,16 @@ export interface BrokenLink {
 
 const MAX_LISTED_LINKS = 100;
 
+function allowed(child: string, parentType: string) {
+  return `(${child}.nest_mode = 'all'
+    OR (${child}.nest_mode = 'own' AND ${child}.id = ${parentType})
+    OR (${child}.nest_mode = 'chosen' AND EXISTS (SELECT 1 FROM type_parent_rules r WHERE r.type_id = ${child}.id AND r.parent_type_id = ${parentType})))`;
+}
+
 @Injectable()
 export class NestingService {
   async lockWorld(client: Queryable, worldId: string) {
-    await client.query(`SELECT pg_advisory_xact_lock(hashtext('nesting:' || $1::text))`, [worldId]);
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1::text))', ['nesting:' + worldId]);
   }
 
   async assertParent(client: Queryable, worldId: string, entryId: string | null, typeId: string | null, parentId: string) {
@@ -31,7 +37,7 @@ export class NestingService {
     }
 
     const type = await client.query(
-      'SELECT name, nestable, any_parent AS "anyParent" FROM entry_types WHERE id = $1 AND world_id = $2',
+      'SELECT name, nest_mode AS "nestMode" FROM entry_types WHERE id = $1 AND world_id = $2',
       [typeId, worldId],
     );
     const child = type.rows[0];
@@ -40,12 +46,12 @@ export class NestingService {
       throw new BadRequestException('Type not found in this world');
     }
 
-    if (!child.nestable) {
+    if (child.nestMode === 'none') {
       throw new BadRequestException('Entries of this type can not be nested');
     }
 
     const found = await client.query(
-      `SELECT e.type_id AS "typeId", t.name AS "typeName", t.nestable
+      `SELECT e.type_id AS "typeId", t.name AS "typeName"
        FROM active_entries e
        LEFT JOIN entry_types t ON t.id = e.type_id
        WHERE e.id = $1 AND e.world_id = $2`,
@@ -57,18 +63,18 @@ export class NestingService {
       throw new BadRequestException('Parent not found in this world');
     }
 
-    if (!parent.nestable) {
-      throw new BadRequestException('That entry can not have entries nested in it');
+    if (child.nestMode === 'own' && parent.typeId !== typeId) {
+      throw new BadRequestException(`${child.name} can only be nested inside other ${child.name}`);
     }
 
-    if (!child.anyParent) {
+    if (child.nestMode === 'chosen') {
       const rule = await client.query(
         'SELECT 1 FROM type_parent_rules WHERE type_id = $1 AND parent_type_id = $2',
         [typeId, parent.typeId],
       );
 
       if (!rule.rows[0]) {
-        throw new BadRequestException(`${child.name} can not be nested inside ${parent.typeName}`);
+        throw new BadRequestException(`${child.name} can not be nested inside ${parent.typeName ?? 'entries without a type'}`);
       }
     }
 
@@ -95,13 +101,9 @@ export class NestingService {
        FROM active_entries c
        JOIN active_entries p ON p.id = c.parent_id AND p.world_id = c.world_id
        LEFT JOIN entry_types ct ON ct.id = c.type_id
-       LEFT JOIN entry_types pt ON pt.id = p.type_id
        WHERE c.world_id = $1
          AND ($2::uuid[] IS NULL OR c.id = ANY($2::uuid[]) OR c.parent_id = ANY($2::uuid[]))
-         AND NOT (
-           COALESCE(ct.nestable, false) AND COALESCE(pt.nestable, false)
-           AND (ct.any_parent OR EXISTS (SELECT 1 FROM type_parent_rules r WHERE r.type_id = ct.id AND r.parent_type_id = pt.id))
-         )
+         AND NOT COALESCE(${allowed('ct', 'p.type_id')}, false)
        ORDER BY lower(c.name)`,
       [worldId, entryIds ?? null],
     );
@@ -142,10 +144,8 @@ export class NestingService {
          WHERE c.parent_id = $1 AND c.world_id = $2 AND c.deleted_at IS NULL
            AND EXISTS (
              SELECT 1
-             FROM entry_types ct, active_entries p, entry_types pt
-             WHERE ct.id = c.type_id AND p.id = $3::uuid AND pt.id = p.type_id
-               AND ct.nestable AND pt.nestable
-               AND (ct.any_parent OR EXISTS (SELECT 1 FROM type_parent_rules r WHERE r.type_id = ct.id AND r.parent_type_id = pt.id))
+             FROM entry_types ct, active_entries p
+             WHERE ct.id = c.type_id AND p.id = $3::uuid AND ${allowed('ct', 'p.type_id')}
            )`,
         [entryId, worldId, parentId],
       );
@@ -157,6 +157,26 @@ export class NestingService {
     );
   }
 
+  async ancestors(client: Queryable, worldId: string, entryId: string) {
+    const result = await client.query(
+      `WITH RECURSIVE chain AS (
+       SELECT p.id, p.name, p.parent_id, 1 AS depth
+       FROM active_entries e
+       JOIN active_entries p ON p.id = e.parent_id AND p.world_id = e.world_id
+       WHERE e.id = $2 AND e.world_id = $1
+       UNION ALL
+       SELECT p.id, p.name, p.parent_id, c.depth + 1
+       FROM chain c
+       JOIN active_entries p ON p.id = c.parent_id AND p.world_id = $1
+       WHERE c.depth < 50
+       )
+       SELECT id, name FROM chain ORDER BY depth DESC`,
+      [worldId, entryId],
+    );
+
+    return result.rows;
+  }
+
   async parentOptions(client: Queryable, worldId: string, typeId: string, entryId?: string) {
     const result = await client.query(
       `WITH RECURSIVE descendants AS (
@@ -166,12 +186,10 @@ export class NestingService {
        )
        SELECT e.id, e.name, e.type_id AS "typeId", t.name AS "typeName"
        FROM active_entries e
-       JOIN entry_types t ON t.id = e.type_id
+       LEFT JOIN entry_types t ON t.id = e.type_id
        JOIN entry_types ct ON ct.id = $2 AND ct.world_id = $1
        WHERE e.world_id = $1
-         AND t.nestable
-         AND ct.nestable
-         AND (ct.any_parent OR EXISTS (SELECT 1 FROM type_parent_rules r WHERE r.type_id = ct.id AND r.parent_type_id = t.id))
+         AND ${allowed('ct', 'e.type_id')}
          AND ($3::uuid IS NULL OR (e.id <> $3::uuid AND e.id NOT IN (SELECT id FROM descendants)))
        ORDER BY lower(e.name)`,
       [worldId, typeId, entryId ?? null],

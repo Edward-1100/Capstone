@@ -8,7 +8,7 @@ import { StorageService } from '../storage/storage.service';
 import { CreateWorldDto } from './dto/create-world.dto';
 import { UpdateWorldDto } from './dto/update-world.dto';
 
-const WORLD_COLUMNS = `id, name, description, visibility, thumbnail_key AS "thumbnailKey", created_at AS "createdAt", updated_at AS "updatedAt"`;
+const WORLD_COLUMNS = 'id, name, description, visibility, thumbnail_key AS "thumbnailKey", created_at AS "createdAt", updated_at AS "updatedAt"';
 
 @Injectable()
 export class WorldsService {
@@ -39,8 +39,8 @@ export class WorldsService {
 
       for (const type of BUILT_IN_TYPES) {
         const created = await client.query(
-          'INSERT INTO entry_types (world_id, name, nestable) VALUES ($1, $2, $3) RETURNING id',
-          [world.id, type.name, type.nestable],
+          'INSERT INTO entry_types (world_id, name, nest_mode, mappable) VALUES ($1, $2, $3, $4) RETURNING id',
+          [world.id, type.name, type.nestMode, type.mappable],
         );
 
         typeIds[type.name] = created.rows[0].id;
@@ -149,7 +149,9 @@ export class WorldsService {
     }
 
     const images = await this.db.query(
-      'SELECT i.storage_key FROM entry_images i JOIN entries e ON e.id = i.entry_id WHERE e.world_id = $1',
+      `SELECT i.storage_key FROM entry_images i JOIN entries e ON e.id = i.entry_id WHERE e.world_id = $1
+       UNION ALL
+       SELECT storage_key FROM maps WHERE world_id = $1`,
       [id],
     );
 

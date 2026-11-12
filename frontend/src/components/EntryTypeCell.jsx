@@ -134,7 +134,7 @@ export default function EntryTypeCell({worldId, type, types, canEdit, onChanged}
     <li className="cell">
       <div className="cell-name">{type.name}</div>
 
-      <div className="cell-info">{countLabel(type.entryCount, 'entry', 'entries')}, {countLabel(type.fields.length, 'field', 'fields')}</div>
+      <div className="cell-info">{countLabel(type.entryCount, 'entry', 'entries')}, {countLabel(type.fields.length, 'field', 'fields')}{type.nestMode !== 'none' && ', can be nested'}{type.mappable && ', can be on maps'}</div>
 
       {canEdit && (
         <div className="cell-actions">

@@ -16,6 +16,7 @@ import { DatabaseModule } from './database/database.module';
 import { NestingModule } from './nesting/nesting.module';
 import { RelationshipsModule } from './relationships/relationships.module';
 import { MembersModule } from './members/members.module';
+import { MapsModule } from './maps/maps.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { MembersModule } from './members/members.module';
     CommentsModule,
     NotesModule,
     MembersModule,
+    MapsModule,
     DashboardModule,
   ],
   controllers: [AppController],

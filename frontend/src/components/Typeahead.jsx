@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 const MAX_SHOWN = 30;
 
-export default function Typeahead({options, onPick, placeholder, label}) {
+export default function Typeahead({options, onPick, placeholder, label, showCount = true, onOpen}) {
   const [text, setText] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -10,7 +10,7 @@ export default function Typeahead({options, onPick, placeholder, label}) {
   const wanted = text.trim().toLowerCase();
   const matches = options
     .filter((option) => option.label.toLowerCase().includes(wanted))
-    .sort((first, second) => (second.count - first.count) || first.label.localeCompare(second.label))
+    .sort((first, second) => ((second.count || 0) - (first.count || 0)) || first.label.localeCompare(second.label))
     .slice(0, MAX_SHOWN);
 
   function pick(option) {
@@ -28,6 +28,14 @@ export default function Typeahead({options, onPick, placeholder, label}) {
   function handleOptionDown(event, option) {
     event.preventDefault();
     pick(option);
+  }
+
+  function handleFocus() {
+    setOpen(true);
+
+    if (onOpen) {
+      onOpen();
+    }
   }
 
   function handleKeyDown(event) {
@@ -59,7 +67,7 @@ export default function Typeahead({options, onPick, placeholder, label}) {
         placeholder={placeholder}
         value={text}
         onChange={handleChange}
-        onFocus={() => setOpen(true)}
+        onFocus={handleFocus}
         onBlur={() => setOpen(false)}
         onKeyDown={handleKeyDown}
       />
@@ -72,7 +80,7 @@ export default function Typeahead({options, onPick, placeholder, label}) {
             <li key={option.id} role="option" aria-selected={index === active} className={index === active ? 'active' : ''} onMouseDown={(event) => handleOptionDown(event, option)} onMouseEnter={() => setActive(index)}>
               <span>{option.label}</span>
 
-              <span className="muted">{option.count}</span>
+              {showCount && <span className="muted">{option.count}</span>}
             </li>
           ))}
         </ul>

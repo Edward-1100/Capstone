@@ -3,6 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
+//Milisecons
+const SIGNING = 6 * 60 * 60 * 1000;
+//Seconds
+const URL_LIFETIME = 12 * 60 * 60;
+const CACHE = 6 * 60 * 60;
+
 @Injectable()
 export class StorageService {
   private client: S3Client | null = null;
@@ -50,8 +56,10 @@ export class StorageService {
     const command = new GetObjectCommand({
       Bucket: this.config.getOrThrow<string>('B2_BUCKET'),
       Key: key,
+      ResponseCacheControl: `private, max-age=${CACHE}`,
     });
+    const signingDate = new Date(Math.floor(Date.now() / SIGNING) * SIGNING);
 
-    return getSignedUrl(this.getClient(), command, {expiresIn: 3600});
+    return getSignedUrl(this.getClient(), command, {expiresIn: URL_LIFETIME, signingDate});
   }
 }

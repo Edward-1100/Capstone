@@ -5,6 +5,7 @@ import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt-auth.guard';
 import { WorldRoleGuard } from '../common/guards/world-role.guard';
 import { DeleteEntryTypeDto } from './dto/delete-entry-type.dto';
 import { EntryTypeDto } from './dto/entry-type.dto';
+import { MappableDto } from './dto/mappable.dto';
 import { NestingDto } from './dto/nesting.dto';
 import { EntryTypesService } from './entry-types.service';
 
@@ -37,6 +38,13 @@ export class EntryTypesController {
   @UseGuards(JwtAuthGuard, WorldRoleGuard)
   setNesting(@Param('id') id: string, @Param('typeId', ParseUUIDPipe) typeId: string, @Body() dto: NestingDto) {
     return this.types.setNesting(id, typeId, dto);
+  }
+
+  @Put(':typeId/mappable')
+  @WorldRole('editor')
+  @UseGuards(JwtAuthGuard, WorldRoleGuard)
+  setMappable(@Param('id') id: string, @Param('typeId', ParseUUIDPipe) typeId: string, @Body() dto: MappableDto) {
+    return this.types.setMappable(id, typeId, dto);
   }
 
   @Delete(':typeId')

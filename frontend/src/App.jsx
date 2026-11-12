@@ -15,6 +15,7 @@ import EntryPage from './features/entries/EntryPage';
 import CollaborationPage from './features/members/CollaborationPage';
 import BlockedUsersPage from './features/members/BlockedUsersPage';
 import JoinPage from './features/members/JoinPage';
+import MapPage from './features/maps/MapPage';
 
 export default function App() {
   return (
@@ -36,6 +37,10 @@ export default function App() {
       <Route path="/worlds/:id/relationship-types" element={<RelationshipTypesPage/>}/>
 
       <Route path="/worlds/:id/tags" element={<TagsPage/>}/>
+
+      <Route path="/worlds/:id/maps" element={<MapPage/>}/>
+
+      <Route path="/worlds/:id/maps/:mapId" element={<MapPage/>}/>
 
       <Route path="/worlds/:id/collaboration" element={<ProtectedRoute><CollaborationPage/></ProtectedRoute>}/>
 
