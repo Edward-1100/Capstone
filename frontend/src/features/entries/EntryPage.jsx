@@ -17,12 +17,12 @@ export default function EntryPage() {
   }, [id, navigate]);
 
   if (!world) {
-    return <Page><p>Loading</p></Page>;
+    return <Page theme="dark"><p>Loading</p></Page>;
   }
 
   return (
-    <Page size="medium" crumbs={[{to: `/worlds/${id}`, label: world.name}, {to: `/worlds/${id}/entries`, label: 'Entries'}]}>
-      <EntryView key={entryId} worldId={id} entryId={entryId} role={world.role} onDeleted={() => navigate(`/worlds/${id}/entries`, {replace: true})}/>
+    <Page size="entry" theme="dark" crumbs={[{to: `/worlds/${id}`, label: world.name}, {to: `/worlds/${id}/entries`, label: 'Entries'}]}>
+      <EntryView key={entryId} worldId={id} entryId={entryId} role={world.role} sideNotes onDeleted={() => navigate(`/worlds/${id}/entries`, {replace: true})}/>
     </Page>
   );
 }

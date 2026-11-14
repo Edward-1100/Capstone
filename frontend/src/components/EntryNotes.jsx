@@ -72,14 +72,14 @@ export default function EntryNotes({worldId, entryId, role}) {
   }
 
   return (
-    <div>
+    <div className="notes-box">
       <h2>Notes</h2>
 
       <p className="muted">Only owners and editors can see notes</p>
 
       {notes.length === 0 && <p className="muted">No notes yet</p>}
 
-      <ul>
+      <ul className="notes-list">
         {notes.map((note) => {
           const isAuthor = Boolean(user) && note.authorId === user.id;
           const canDelete = isAuthor || role === 'owner';

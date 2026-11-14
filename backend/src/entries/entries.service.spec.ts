@@ -124,9 +124,13 @@ describe('EntriesService', () => {
     it('returns a conflict when the version is stale', async () => {
       const {service, client} = createService();
 
+      jest.spyOn(service, 'findOne').mockResolvedValue({id: 'e1', name: 'Old', version: 2} as any);
       client.query.mockResolvedValueOnce({rows: [{name: 'Old', type_id: null, fields: {}, version: 2}]});
 
-      await expect(service.update('w1', 'e1', 'u1', {version: 1, name: 'New'})).rejects.toThrow(ConflictException);
+      const error: any = await service.update('w1', 'e1', 'u1', {version: 1, name: 'New'}).catch((err) => err);
+
+      expect(error).toBeInstanceOf(ConflictException);
+      expect(error.getResponse()).toEqual({message: 'Entry was changed by someone else', current: {id: 'e1', name: 'Old', version: 2}});
     });
 
     it('returns a conflict when someone saves between the read and the write', async () => {
@@ -135,8 +139,12 @@ describe('EntriesService', () => {
       client.query
         .mockResolvedValueOnce({rows: [{name: 'Old', type_id: null, fields: {}, version: 1}]})
         .mockResolvedValueOnce({rows: []});
+      jest.spyOn(service, 'findOne').mockResolvedValue({id: 'e1', version: 2} as any);
 
-      await expect(service.update('w1', 'e1', 'u1', {version: 1, name: 'New'})).rejects.toThrow(ConflictException);
+      const error: any = await service.update('w1', 'e1', 'u1', {version: 1, name: 'New'}).catch((err) => err);
+
+      expect(error).toBeInstanceOf(ConflictException);
+      expect(error.getResponse().current).toEqual({id: 'e1', version: 2});
     });
 
     it('returns not found when the entry does not exist', async () => {
@@ -191,6 +199,48 @@ describe('EntriesService', () => {
       await service.update('w1', 'e1', 'u1', {version: 1, description: 'About'});
 
       expect(client.query).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe('editing', () => {
+    it('lists the other people editing an entry', async () => {
+      const {service, db} = createService();
+
+      db.query.mockResolvedValueOnce({rows: [{userId: 'u2', username: 'sam'}]});
+
+      expect(await service.editors('w1', 'e1', 'u1')).toEqual({editors: [{userId: 'u2', username: 'sam'}]});
+      expect(db.query.mock.calls[0][1]).toEqual(['e1', 'w1', 'u1', 30]);
+    });
+
+    it('records a heartbeat and returns the others', async () => {
+      const {service, db} = createService();
+
+      db.query
+        .mockResolvedValueOnce({rows: [{entry_id: 'e1'}]})
+        .mockResolvedValueOnce({rows: []})
+        .mockResolvedValueOnce({rows: [{userId: 'u2', username: 'sam'}]});
+
+      expect(await service.startEditing('w1', 'e1', 'u1')).toEqual({editors: [{userId: 'u2', username: 'sam'}]});
+      expect(db.query.mock.calls[0][1]).toEqual(['e1', 'w1', 'u1']);
+      expect(db.query.mock.calls[1][1]).toEqual([120]);
+    });
+
+    it('returns not found when the entry is not in the world', async () => {
+      const {service, db} = createService();
+
+      db.query.mockResolvedValueOnce({rows: []});
+
+      await expect(service.startEditing('w1', 'e1', 'u1')).rejects.toThrow(NotFoundException);
+      expect(db.query).toHaveBeenCalledTimes(1);
+    });
+
+    it('stops editing', async () => {
+      const {service, db} = createService();
+
+      db.query.mockResolvedValueOnce({rows: []});
+
+      expect(await service.stopEditing('w1', 'e1', 'u1')).toEqual({editors: []});
+      expect(db.query.mock.calls[0][1]).toEqual(['e1', 'w1', 'u1']);
     });
   });
 

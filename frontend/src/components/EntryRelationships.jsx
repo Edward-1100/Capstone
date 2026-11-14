@@ -5,7 +5,7 @@ import { createRelationshipRequest, deleteRelationshipRequest, listEntryRelation
 import { listRelationshipTypesRequest } from '../api/relationshipTypes';
 import { allows } from '../utils/relationships';
 
-export default function EntryRelationships({worldId, entryId, entryTypeId, canEdit}) {
+export default function EntryRelationships({worldId, entryId, entryName, entryTypeId, canEdit}) {
   const [relationships, setRelationships] = useState(null);
   const [types, setTypes] = useState([]);
   const [entries, setEntries] = useState([]);
@@ -94,6 +94,24 @@ export default function EntryRelationships({worldId, entryId, entryTypeId, canEd
     return <p>{error || 'Loading'}</p>;
   }
 
+  const reversed = direction === 'in';
+
+  const selfCell = <strong className="self">{entryName}</strong>;
+
+  const typeSelect = (
+    <select aria-label="Relationship type" value={typeId} onChange={(e) => handleTypeChange(e.target.value)}>
+      <option value="">Choose a type</option>
+      {types.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+    </select>
+  );
+
+  const otherSelect = (
+    <select aria-label="Other entry" value={otherId} disabled={!type} onChange={(e) => setOtherId(e.target.value)}>
+      <option value="">Choose an entry</option>
+      {candidates.map((other) => <option key={other.id} value={other.id}>{other.name} ({other.typeName || 'no type'})</option>)}
+    </select>
+  );
+
   return (
     <div>
       <div className="line">
@@ -104,57 +122,58 @@ export default function EntryRelationships({worldId, entryId, entryTypeId, canEd
 
       {relationships.length === 0 && <p className="muted">No relationships yet</p>}
 
-      <ul className="rows">
-        {relationships.map((item) => (
-          <li key={item.id}>
-            <span className="kind">{item.direction === 'out' ? item.typeName : `${item.typeName} (incoming)`}</span>
-
-            <span className="other"><Link to={`/worlds/${worldId}/entries/${item.otherId}`}>{item.otherName}</Link> <span>{item.otherTypeName || 'no type'}</span></span>
-
-            {canEdit && <span className="row-actions"><button type="button" onClick={() => handleRemove(item.id)}>Remove</button></span>}
+      {relationships.length > 0 && (
+        <ul className="links">
+          <li className="links-head">
+            <span>From</span>
+            <span>Relationship</span>
+            <span>To</span>
           </li>
-        ))}
-      </ul>
+
+          {relationships.map((item) => {
+            const outgoing = item.direction === 'out';
+            const other = <span className="other-entry"><Link to={`/worlds/${worldId}/entries/${item.otherId}`}>{item.otherName}</Link><span className="muted">{item.otherTypeName || 'no type'}</span></span>;
+
+            return (
+              <li key={item.id}>
+                {outgoing ? selfCell : other}
+
+                <span className="link-kind">{item.typeName}</span>
+
+                {outgoing ? other : selfCell}
+
+                {canEdit && <span className="row-actions"><button type="button" onClick={() => handleRemove(item.id)}>Remove</button></span>}
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
       {error && <p role="alert">{error}</p>}
 
       {adding && (
         <form className="add-form" onSubmit={handleAdd}>
-          <div>
-            <label htmlFor="relType">Relationship type</label>
+          <ul className="links">
+            <li className="links-head">
+              <span>From</span>
+              <span>Relationship</span>
+              <span>To</span>
+            </li>
 
-            <select id="relType" value={typeId} onChange={(e) => handleTypeChange(e.target.value)}>
-              <option value="">Choose a type</option>
-              {types.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
-          </div>
+            <li>
+              <div className="cell"><span className="cap">From</span>{reversed ? otherSelect : selfCell}</div>
 
-          {type && (
-            <div>
-              <label htmlFor="relDirection">Direction</label>
+              <div className="cell"><span className="cap">Relationship</span>{typeSelect}</div>
 
-              <select id="relDirection" value={direction} onChange={(e) => handleDirectionChange(e.target.value)}>
-                <option value="out">From this entry</option>
-                <option value="in">To this entry</option>
-              </select>
-            </div>
-          )}
+              <div className="cell"><span className="cap">To</span>{reversed ? selfCell : otherSelect}</div>
+            </li>
+          </ul>
 
-          {type && (
-            <div>
-              <label htmlFor="relOther">Other entry</label>
-
-              <select id="relOther" value={otherId} onChange={(e) => setOtherId(e.target.value)}>
-                <option value="">Choose an entry</option>
-                {candidates.map((other) => <option key={other.id} value={other.id}>{other.name} ({other.typeName || 'no type'})</option>)}
-              </select>
-
-              {candidates.length === 0 && <p className="muted">No entries can be connected this way</p>}
-            </div>
-          )}
+          {type && candidates.length === 0 && <p className="muted">No entries can be connected this way</p>}
 
           <div className="actions">
             <button type="submit" disabled={!type || !otherId}>Add relationship</button>
+            <button type="button" onClick={() => handleDirectionChange(reversed ? 'out' : 'in')}>Swap sides</button>
             <button type="button" onClick={closeForm}>Cancel</button>
           </div>
         </form>

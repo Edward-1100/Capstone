@@ -10,10 +10,13 @@ import { StorageService } from '../storage/storage.service';
 import { CreateEntryDto } from './dto/create-entry.dto';
 import { UpdateEntryDto } from './dto/update-entry.dto';
 
+const EDITING_SECONDS = 30;
 const MAX_IMAGES = 5;
 const MAX_TAG_FILTERS = 50;
 
 const MAX_SEARCH_LENGTH = 100;
+
+class VersionConflictException extends ConflictException {}
 
 export interface ListEntriesQuery {
   q?: string;
@@ -229,7 +232,8 @@ export class EntriesService {
     const result = await this.db.query(
       `SELECT e.id, e.type_id AS "typeId", e.parent_id AS "parentId", e.name, e.description, e.version, e.fields,
               e.created_at AS "createdAt", e.updated_at AS "updatedAt",
-              t.name AS "typeName"
+              t.name AS "typeName",
+              (SELECT u.username FROM activity_log a JOIN users u ON u.id = a.user_id WHERE a.entry_id = e.id AND a.action IN ('created', 'updated') ORDER BY a.created_at DESC LIMIT 1) AS "updatedBy"
        FROM active_entries e
        LEFT JOIN entry_types t ON t.id = e.type_id
        WHERE e.id = $1 AND e.world_id = $2`,
@@ -305,7 +309,7 @@ export class EntriesService {
         }
 
         if (entry.version !== dto.version) {
-          throw new ConflictException('Entry was changed by someone else');
+          throw new VersionConflictException('Entry was changed by someone else');
         }
 
         const typeId = dto.typeId !== undefined ? dto.typeId : entry.type_id;
@@ -338,7 +342,7 @@ export class EntriesService {
         );
 
         if (!result.rows[0]) {
-          throw new ConflictException('Entry was changed by someone else');
+          throw new VersionConflictException('Entry was changed by someone else');
         }
 
         if (typeChanged) {
@@ -356,8 +360,56 @@ export class EntriesService {
 
       return await this.findOne(worldId, entryId);
     } catch (err: any) {
+      if (err instanceof VersionConflictException) {
+        throw new ConflictException({message: err.message, current: await this.findOne(worldId, entryId)});
+      }
+
       return this.rethrow(err);
     }
+  }
+
+  async editors(worldId: string, entryId: string, userId: string) {
+    const result = await this.db.query(
+      `SELECT u.id AS "userId", u.username
+       FROM entry_editors ed
+       JOIN users u ON u.id = ed.user_id
+       JOIN active_entries e ON e.id = ed.entry_id
+       WHERE ed.entry_id = $1 AND e.world_id = $2 AND ed.user_id <> $3
+         AND ed.updated_at > now() - make_interval(secs => $4)
+       ORDER BY ed.updated_at, u.username`,
+      [entryId, worldId, userId, EDITING_SECONDS],
+    );
+
+    return {editors: result.rows};
+  }
+
+  async startEditing(worldId: string, entryId: string, userId: string) {
+    const result = await this.db.query(
+      `INSERT INTO entry_editors (entry_id, user_id)
+       SELECT id, $3 FROM active_entries WHERE id = $1 AND world_id = $2
+       ON CONFLICT (entry_id, user_id) DO UPDATE SET updated_at = now()
+       RETURNING entry_id`,
+      [entryId, worldId, userId],
+    );
+
+    if (!result.rows[0]) {
+      throw new NotFoundException('Entry not found');
+    }
+
+    await this.db.query('DELETE FROM entry_editors WHERE updated_at < now() - make_interval(secs => $1)', [EDITING_SECONDS * 4]);
+
+    return this.editors(worldId, entryId, userId);
+  }
+
+  async stopEditing(worldId: string, entryId: string, userId: string) {
+    await this.db.query(
+      `DELETE FROM entry_editors ed
+       USING active_entries e
+       WHERE ed.entry_id = e.id AND e.world_id = $2 AND ed.entry_id = $1 AND ed.user_id = $3`,
+      [entryId, worldId, userId],
+    );
+
+    return {editors: []};
   }
 
   remove(worldId: string, entryId: string, userId: string) {
