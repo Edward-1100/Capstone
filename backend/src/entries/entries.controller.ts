@@ -57,6 +57,28 @@ export class EntriesController {
     return this.entries.update(id, entryId, req.user.id, dto);
   }
 
+  @Get(':entryId/editing')
+  @WorldRole('editor')
+  @UseGuards(JwtAuthGuard, WorldRoleGuard)
+  editors(@Param('id') id: string, @Param('entryId', ParseUUIDPipe) entryId: string, @Req() req: any) {
+    return this.entries.editors(id, entryId, req.user.id);
+  }
+
+  @Put(':entryId/editing')
+  @WorldRole('editor')
+  @UseGuards(JwtAuthGuard, WorldRoleGuard)
+  startEditing(@Param('id') id: string, @Param('entryId', ParseUUIDPipe) entryId: string, @Req() req: any) {
+    return this.entries.startEditing(id, entryId, req.user.id);
+  }
+
+  @Delete(':entryId/editing')
+  @HttpCode(200)
+  @WorldRole('editor')
+  @UseGuards(JwtAuthGuard, WorldRoleGuard)
+  stopEditing(@Param('id') id: string, @Param('entryId', ParseUUIDPipe) entryId: string, @Req() req: any) {
+    return this.entries.stopEditing(id, entryId, req.user.id);
+  }
+
   @Delete(':entryId')
   @HttpCode(200)
   @WorldRole('editor')

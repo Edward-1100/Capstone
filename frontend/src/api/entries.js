@@ -53,3 +53,15 @@ export function replaceEntryImageRequest(worldId, entryId, imageId, file) {
 export function deleteEntryImageRequest(worldId, entryId, imageId) {
   return apiFetch(`/worlds/${worldId}/entries/${entryId}/images/${imageId}`, {method: 'DELETE'});
 }
+
+export function getEntryEditorsRequest(worldId, entryId) {
+  return apiFetch(`/worlds/${worldId}/entries/${entryId}/editing`);
+}
+
+export function startEntryEditingRequest(worldId, entryId) {
+  return apiFetch(`/worlds/${worldId}/entries/${entryId}/editing`, {method: 'PUT'});
+}
+
+export function stopEntryEditingRequest(worldId, entryId) {
+  return apiFetch(`/worlds/${worldId}/entries/${entryId}/editing`, {method: 'DELETE'});
+}

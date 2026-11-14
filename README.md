@@ -2,16 +2,17 @@
 
 Web application for creating and keeping track of worldbuilding projects. Users add things to the world, then connect them with relationships.
 
-## Currently Working On
+## Currently Working
 
 - User registration, login, and logout
 - Create, edit, and delete worlds, with public or private visibility
-- Owner, editor, and viewer access levels
+- Owner, editor, and viewer access levels and the ability to invite through username or link
 - World thumbnails stored in Backblaze B2
 - Entry types: four built-in types per world (character, location, faction, event), and ability to add custom types
 - Entries with names, descriptions, and types
 - Custom fields on entry types (text, long text, number, true/false, scale, choice, multiple choice)
-- Locations that can be nested inside other locations, with rules for which types can contain which
+- Nesting entries inside other entries, with rules for each type
+- Maps with pins that correspond to entries
 - Relationships between entries, with relationship types
 - Tags, including rules that apply a tag to matching entries automatically
 - Search with combined filters for type, tag, and relationship
@@ -117,7 +118,17 @@ frontend: React
 - Editors can change world content. Viewers can only read it
 - Public worlds can be viewed by anyone, including people who aren't signed in
 - Private worlds are only visible to members
+- Worlds shared with a user appear on the worlds page. Members can leave a world at any time
 - Thumbnails and entry images are PNG, JPEG, or WebP files stored in a private bucket and shown through temporary signed links
+
+## Collaboration
+
+- Owners can invite people by username or with an invite link as either a viewer or an editor
+- A viewer invite adds the person as a viewer right away
+- An editor invite adds the person as a viewer until they accept the invite. Denying it removes them from the world
+- Invite links require an account. Anyone who opens one while signed out is sent to log in or register first, and then joins the world
+- Owners can change a member's role, remove a member, and cancel a pending invite
+- A user can block users through their username. Blocked users can no longer invite them to worlds
 
 ## Entries
 
@@ -132,13 +143,22 @@ frontend: React
 - Required fields and number ranges are checked when an entry is saved. Entries that no longer fit are listed under needs attention on the dashboard
 - Removing a choice option that entries use asks for confirmation and clears it from those entries
 
-## Nested Locations
+## Nesting
 
-- A type can be turned on as nestable, so its entries can be placed inside other entries of a nestable type
-- A nestable type can allow any parent type or only chosen ones
+- Each entry type can have its nesting mode be set to not nestable, nestable to all types, nestable to its own type, or nestable to specific types.
+- An entry without a type can not be nested
 - An entry can not be placed inside itself or inside something it contains
-- Changes that would break existing links, such as changing a type's rules or an entry's type, list the affected entries and ask for confirmation
+- Changes that would break existing links, such as changing a type's rule or an entry's type, list the affected entries and ask for confirmation
 - Deleting an entry moves its children up to its parent when allowed
+- Nesting rules are edited in the settings of the map page
+
+## Maps
+
+- A world can have up to 6 maps, with map images being either PNG, JPEG, or WebP files
+- Editors add an entries as pins to the map, with each entry can be on a map once
+- The pin's image defaults to the entry's first image, but can be changed to any of the entries images. If the entry has no image, the pin will be blank. Both the color o the pin and the inside of the pin can be changed by the user.
+- Clicking a pin shows the entry's information on the right side of the screen, with a link to go to the entry's page. Clicking the pin again shows the pin's information allowing the user to edit the pin's colours and the pins location.
+- The settings panel sets which entry types can be placed on maps. By default worlds allow characters, events, and locations. Removing an entry type from those which can be placed on the map removes the pins of that type, but adding it back will restore the pins.
 
 ## Relationships
 

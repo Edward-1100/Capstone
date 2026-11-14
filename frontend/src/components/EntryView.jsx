@@ -1,8 +1,12 @@
-import { Fragment, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { deleteEntryRequest, getEntryRequest, listEntriesRequest, updateEntryRequest } from '../api/entries';
+import { deleteEntryRequest, getEntryEditorsRequest, getEntryRequest, listEntriesRequest, startEntryEditingRequest, stopEntryEditingRequest, updateEntryRequest } from '../api/entries';
 import { listEntryTypesRequest } from '../api/entryTypes';
+import { useAuth } from '../context/AuthContext';
+import { applyChoices, findConflicts, hasChanges } from '../utils/conflicts';
 import { formatValue } from '../utils/fields';
+import { editorsLabel } from '../utils/text';
+import EntryConflict from './EntryConflict';
 import EntryComments from './EntryComments';
 import EntryGallery from './EntryGallery';
 import EntryNotes from './EntryNotes';
@@ -13,7 +17,12 @@ import FieldInput from './FieldInput';
 import LinkedText from './LinkedText';
 import LinkTextarea from './LinkTextarea';
 
-export default function EntryView({worldId, entryId, role, pageLink, onDeleted, onChanged}) {
+const EDITING_PING_MS = 10000;
+const MAX_RETRIES = 3;
+
+export default function EntryView({worldId, entryId, role, pageLink, sideNotes, onDeleted, onChanged}) {
+  const {user} = useAuth();
+
   const canEdit = role === 'owner' || role === 'editor';
 
   const [entry, setEntry] = useState(null);
@@ -26,7 +35,8 @@ export default function EntryView({worldId, entryId, role, pageLink, onDeleted, 
   const [descriptionDraft, setDescriptionDraft] = useState('');
   const [valuesDraft, setValuesDraft] = useState({});
   const [error, setError] = useState('');
-  const [conflict, setConflict] = useState(false);
+  const [conflict, setConflict] = useState(null);
+  const [editors, setEditors] = useState([]);
   const [unlink, setUnlink] = useState(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
@@ -47,9 +57,42 @@ export default function EntryView({worldId, entryId, role, pageLink, onDeleted, 
       .catch((err) => setLoadError(err));
   }, [worldId, entryId, canEdit]);
 
+  const active = editing !== '';
+
+  useEffect(() => {
+    if (!canEdit) {
+      return undefined;
+    }
+
+    let stopped = false;
+
+    function ping() {
+      const request = active ? startEntryEditingRequest(worldId, entryId) : getEntryEditorsRequest(worldId, entryId);
+
+      request.then((data) => {
+        if (!stopped) {
+          setEditors(data.editors);
+        }
+      }).catch(() => undefined);
+    }
+
+    ping();
+
+    const timer = setInterval(ping, EDITING_PING_MS);
+
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+
+      if (active) {
+        stopEntryEditingRequest(worldId, entryId).catch(() => undefined);
+      }
+    };
+  }, [canEdit, active, worldId, entryId]);
+
   function startEdit(section) {
     setError('');
-    setConflict(false);
+    setConflict(null);
     setUnlink(null);
     setEditing(section);
     setNameDraft(entry.name);
@@ -61,7 +104,7 @@ export default function EntryView({worldId, entryId, role, pageLink, onDeleted, 
   function cancelEdit() {
     setEditing('');
     setError('');
-    setConflict(false);
+    setConflict(null);
     setUnlink(null);
   }
 
@@ -76,34 +119,63 @@ export default function EntryView({worldId, entryId, role, pageLink, onDeleted, 
     notifyChanged();
   }
 
-  async function save(changes) {
+  function finishWith(data) {
+    setEntry(data);
+    setConflict(null);
+    setUnlink(null);
+    setEditing('');
+    notifyChanged();
+  }
+
+  function handleConflict(current, changes, attempt) {
+    const result = findConflicts(entry, current, changes);
+
+    if (result.conflicts.length > 0) {
+      setConflict({current, merged: result.merged, items: result.conflicts, choices: {}});
+    } else if (!hasChanges(result.merged)) {
+      finishWith(current);
+    } else if (attempt >= MAX_RETRIES) {
+      setError('This entry keeps changing. Try again in a moment');
+    } else {
+      save(result.merged, current.version, attempt + 1);
+    }
+  }
+
+  async function save(changes, version, attempt) {
     setError('');
-    setConflict(false);
+    setConflict(null);
 
     try {
-      setEntry(await updateEntryRequest(worldId, entryId, Object.assign({version: entry.version}, changes)));
-      setUnlink(null);
-      setEditing('');
-      notifyChanged();
+      const updated = await updateEntryRequest(worldId, entryId, Object.assign({version: version || entry.version}, changes));
+
+      finishWith(updated);
     } catch (err) {
       if (err.status === 409 && err.data && err.data.links) {
         setUnlink(err.data);
-      } else if (err.status === 409) {
-        setConflict(true);
+      } else if (err.status === 409 && err.data && err.data.current) {
+        handleConflict(err.data.current, changes, attempt || 1);
       } else {
         setError(err.message);
       }
     }
   }
 
-  async function handleLoadLatest() {
-    setConflict(false);
+  function handleChoose(id, side) {
+    setConflict(Object.assign({}, conflict, {choices: Object.assign({}, conflict.choices, {[id]: side})}));
+  }
 
-    try {
-      setEntry(await getEntryRequest(worldId, entryId));
-    } catch (err) {
-      setError(err.message);
+  function handleResolve() {
+    const changes = applyChoices(conflict.current, conflict.merged, conflict.items, conflict.choices);
+
+    if (hasChanges(changes)) {
+      save(changes, conflict.current.version, 1);
+    } else {
+      finishWith(conflict.current);
     }
+  }
+
+  function handleDiscard() {
+    finishWith(conflict.current);
   }
 
   function buildFields() {
@@ -172,9 +244,13 @@ export default function EntryView({worldId, entryId, role, pageLink, onDeleted, 
     return <div className="panel"><p>Loading</p></div>;
   }
 
-  return (
+  const shownFields = entry.typeFields.filter((definition) => definition.required || formatValue(definition, entry.fields[definition.id]) !== '');
+
+  const notes = canEdit ? <div className="section notes"><EntryNotes worldId={worldId} entryId={entryId} role={role}/></div> : null;
+
+  const panel = (
     <div className="panel">
-      <div>
+      <div className="section">
         {editing !== 'name' && (
           <div className="line">
             <h1 className="title">{entry.name}</h1>
@@ -212,14 +288,16 @@ export default function EntryView({worldId, entryId, role, pageLink, onDeleted, 
           </form>
         )}
 
+        {editors.length > 0 && <p className="editing-notice" role="status">{editorsLabel(editors)}</p>}
+
         <EntryPlace worldId={worldId} entry={entry} types={types} canEdit={canEdit} editing={editing} onEdit={() => startEdit('parent')} onCancel={cancelEdit} onSave={(parentId) => save({parentId})}/>
       </div>
 
-      {(error || conflict || unlink) && (
+      {conflict && <EntryConflict current={conflict.current} items={conflict.items} choices={conflict.choices} types={types} allEntries={allEntries} mineName={user ? user.username : 'You'} onChoose={handleChoose} onSave={handleResolve} onDiscard={handleDiscard}/>}
+
+      {(error || unlink) && (
         <div>
           {error && <p role="alert">{error}</p>}
-
-          {conflict && <p role="alert">Someone else changed this entry. Your edit is kept, so you can load the latest version and save again. <button type="button" onClick={handleLoadLatest}>Load latest</button></p>}
 
           {unlink && (
             <div>
@@ -235,9 +313,11 @@ export default function EntryView({worldId, entryId, role, pageLink, onDeleted, 
         </div>
       )}
 
-      <EntryGallery worldId={worldId} entryId={entryId} entryName={entry.name} images={entry.images} canEdit={canEdit} onChange={handleGalleryChange}/>
+      <div className="section">
+        <EntryGallery worldId={worldId} entryId={entryId} entryName={entry.name} images={entry.images} canEdit={canEdit} onChange={handleGalleryChange}/>
+      </div>
 
-      <div>
+      <div className="section">
         {editing !== 'description' && <div className="description">{entry.description ? <LinkedText worldId={worldId} text={entry.description} entries={allEntries}/> : <span className="muted">No description yet</span>}</div>}
 
         {editing === 'description' && (
@@ -254,21 +334,21 @@ export default function EntryView({worldId, entryId, role, pageLink, onDeleted, 
         {canEdit && editing !== 'description' && <div className="actions"><button type="button" onClick={() => startEdit('description')}>Edit description</button></div>}
       </div>
 
-      {entry.typeFields.length > 0 && (
-        <div>
+      {entry.typeFields.length > 0 && (canEdit || shownFields.length > 0) && (
+        <div className="section">
           <div className="line">
             <h2>Details</h2>
 
             {canEdit && editing !== 'fields' && <button type="button" onClick={() => startEdit('fields')}>Edit</button>}
           </div>
 
-          {editing !== 'fields' && (
+          {editing !== 'fields' && shownFields.length > 0 && (
             <dl className="facts">
-              {entry.typeFields.map((definition) => (
-                <Fragment key={definition.id}>
+              {shownFields.map((definition) => (
+                <div className="fact" key={definition.id}>
                   <dt>{definition.name}</dt>
-                  <dd>{formatValue(definition, entry.fields[definition.id]) || 'not set'}</dd>
-                </Fragment>
+                  <dd className={definition.fieldType === 'long_text' ? 'long' : ''}>{formatValue(definition, entry.fields[definition.id]) || 'not set'}</dd>
+                </div>
               ))}
             </dl>
           )}
@@ -291,13 +371,11 @@ export default function EntryView({worldId, entryId, role, pageLink, onDeleted, 
         </div>
       )}
 
-      <EntryTags worldId={worldId} entryId={entryId} canEdit={canEdit}/>
+      <div className="section"><EntryTags worldId={worldId} entryId={entryId} canEdit={canEdit}/></div>
 
-      <EntryRelationships worldId={worldId} entryId={entryId} entryTypeId={entry.typeId} canEdit={canEdit}/>
+      <div className="section"><EntryRelationships worldId={worldId} entryId={entryId} entryName={entry.name} entryTypeId={entry.typeId} canEdit={canEdit}/></div>
 
-      {canEdit && <EntryNotes worldId={worldId} entryId={entryId} role={role}/>}
-
-      <EntryComments worldId={worldId} entryId={entryId} role={role}/>
+      <div className="section"><EntryComments worldId={worldId} entryId={entryId} role={role}/></div>
 
       {pageLink && <div><Link to={pageLink}>Open as a page</Link></div>}
 
@@ -315,6 +393,20 @@ export default function EntryView({worldId, entryId, role, pageLink, onDeleted, 
           )}
         </div>
       )}
+
+      {!sideNotes && notes}
+    </div>
+  );
+
+  if (!sideNotes) {
+    return panel;
+  }
+
+  return (
+    <div className={canEdit ? 'entry-frame with-side' : 'entry-frame'}>
+      {panel}
+
+      {canEdit && <aside className="entry-side">{notes}</aside>}
     </div>
   );
 }
