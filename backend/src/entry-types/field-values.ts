@@ -13,8 +13,12 @@ const MAX_LABEL = 50;
 function cleanLabel(value: any, what: string) {
   const label = typeof value === 'string' ? value.trim() : '';
 
-  if (!label || label.length > MAX_LABEL) {
-    throw new BadRequestException(`${what} must be 1 to ${MAX_LABEL} characters`);
+  if (!label) {
+    throw new BadRequestException(`${what} can not be blank`);
+  }
+
+  if (label.length > MAX_LABEL) {
+    throw new BadRequestException(`${what} can only be up to ${MAX_LABEL} characters`);
   }
 
   return label;
@@ -70,7 +74,7 @@ export function normalizeConfig(fieldType: string, config: any, existing?: any) 
     const raw = input.options ?? base.options;
 
     if (!Array.isArray(raw) || raw.length < 1 || raw.length > MAX_OPTIONS) {
-      throw new BadRequestException(`Add 1 to ${MAX_OPTIONS} options`);
+      throw new BadRequestException(`Options must be between 1 and ${MAX_OPTIONS}`);
     }
 
     const known = new Set((base.options ?? []).map((option: any) => option.id));

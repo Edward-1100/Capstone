@@ -132,10 +132,10 @@ export default function EntryRelationships({worldId, entryId, entryName, entryTy
 
           {relationships.map((item) => {
             const outgoing = item.direction === 'out';
-            const other = <span className="other-entry"><Link to={`/worlds/${worldId}/entries/${item.otherId}`}>{item.otherName}</Link><span className="muted">{item.otherTypeName || 'no type'}</span></span>;
+            const other = <span className="other-entry"><span className="dir" aria-hidden="true">{outgoing ? '-->' : '<--'}</span><Link to={`/worlds/${worldId}/entries/${item.otherId}`}>{item.otherName}</Link><span className="muted">{item.otherTypeName || 'no type'}</span></span>;
 
             return (
-              <li key={item.id}>
+              <li key={item.id} className={outgoing ? 'out' : 'in'}>
                 {outgoing ? selfCell : other}
 
                 <span className="link-kind">{item.typeName}</span>

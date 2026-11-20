@@ -1,9 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 import { createWorldRequest, uploadThumbnailRequest } from '../../api/worlds';
-import Page from '../../components/Page';
+import Modal from '../../components/Modal';
 import WorldForm from '../../components/WorldForm';
 
-export default function NewWorldPage() {
+export default function NewWorldModal({onClose}) {
   const navigate = useNavigate();
 
   async function handleCreate(data) {
@@ -22,13 +22,16 @@ export default function NewWorldPage() {
     navigate(`/worlds/${world.id}`);
   }
 
-  return (
-    <Page size="medium" crumbs={[{to: '/', label: 'Your worlds'}, {label: 'New world'}]}>
-      <div className="panel">
-        <h1 className="title">New world</h1>
+  const footer = (
+    <>
+      <button type="button" onClick={onClose}>Cancel</button>
+      <button type="submit" form="new-world-form" className="primary">Create world</button>
+    </>
+  );
 
-        <WorldForm initial={{name: '', description: '', visibility: 'private'}} submitLabel="Create world" onSubmit={handleCreate}/>
-      </div>
-    </Page>
+  return (
+    <Modal title="New world" size="small" onClose={onClose} footer={footer}>
+      <WorldForm formId="new-world-form" hideSubmit initial={{name: '', description: '', visibility: 'private'}} submitLabel="Create world" onSubmit={handleCreate}/>
+    </Modal>
   );
 }

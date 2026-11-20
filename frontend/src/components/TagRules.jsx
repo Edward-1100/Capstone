@@ -143,7 +143,7 @@ export default function TagRules({worldId, tag, canEdit, focusEntryId, onChanged
       <ul className="conditions">
         {conditions.map((item, index) => (
           <li key={index} className={item.broken ? 'broken' : ''}>
-            {canEdit ? (
+            {canEdit && (
               <div className="inline-form">
                 <select aria-label="Include or except" value={item.exclude ? 'except' : 'include'} onChange={(e) => updateCondition(index, {exclude: e.target.value === 'except'})}>
                   <option value="include">Include if</option>
@@ -199,9 +199,9 @@ export default function TagRules({worldId, tag, canEdit, focusEntryId, onChanged
 
                 <button type="button" onClick={() => removeCondition(index)}>Remove</button>
               </div>
-            ) : (
-              <span>{item.exclude ? 'Except if ' : 'Include if '}{describe(item, entryTypes, relationshipTypes, entries)}</span>
             )}
+
+            {!canEdit && <span>{item.exclude ? 'Except if ' : 'Include if '}{describe(item, entryTypes, relationshipTypes, entries)}</span>}
 
             {item.broken && <p className="muted">This points at something that was deleted. Choose another or remove it.</p>}
           </li>

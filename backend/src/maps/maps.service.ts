@@ -221,7 +221,7 @@ export class MapsService {
       return markers[0];
     } catch (err: any) {
       if (err.code === '23505') {
-        throw new ConflictException('That entry is already on this map');
+        throw new ConflictException('Entry already exists on map');
       }
 
       throw err;

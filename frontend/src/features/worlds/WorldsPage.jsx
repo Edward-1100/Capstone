@@ -4,6 +4,8 @@ import { acceptInviteRequest, denyInviteRequest, leaveWorldRequest } from '../..
 import { listWorldsRequest } from '../../api/worlds';
 import Page from '../../components/Page';
 import { useAuth } from '../../context/AuthContext';
+import ImportModal from '../transfer/ImportModal';
+import NewWorldModal from './NewWorldModal';
 
 function Thumb({world}) {
   return world.thumbnailUrl ? <img className="thumb" src={world.thumbnailUrl} alt=""/> : <span className="thumb"></span>;
@@ -17,6 +19,7 @@ export default function WorldsPage() {
   const [loading, setLoading] = useState(true);
   const [leavingId, setLeavingId] = useState(null);
   const [error, setError] = useState('');
+  const [dialog, setDialog] = useState('');
 
   useEffect(() => {
     listWorldsRequest()
@@ -64,7 +67,9 @@ export default function WorldsPage() {
           <div className="line">
             <h2>Your worlds</h2>
 
-            <Link className="button" to="/worlds/new">New world</Link>
+            <button type="button" onClick={() => setDialog('new')}>New world</button>
+
+            <button type="button" onClick={() => setDialog('import')}>Import world</button>
           </div>
 
           {loading && <p>Loading</p>}
@@ -120,6 +125,10 @@ export default function WorldsPage() {
           </div>
         )}
       </div>
+
+      {dialog === 'new' && <NewWorldModal onClose={() => setDialog('')}/>}
+
+      {dialog === 'import' && <ImportModal onClose={() => setDialog('')}/>}
     </Page>
   );
 }

@@ -1,9 +1,9 @@
+import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import ProtectedRoute from './routes/ProtectedRoute';
 import LoginPage from './features/auth/LoginPage';
 import RegisterPage from './features/auth/RegisterPage';
 import WorldsPage from './features/worlds/WorldsPage';
-import NewWorldPage from './features/worlds/NewWorldPage';
 import WorldPage from './features/worlds/WorldPage';
 import EditWorldPage from './features/worlds/EditWorldPage';
 import EntryTypesPage from './features/entry-types/EntryTypesPage';
@@ -12,12 +12,16 @@ import TagsPage from './features/tags/TagsPage';
 import EntriesPage from './features/entries/EntriesPage';
 import NewEntryPage from './features/entries/NewEntryPage';
 import EntryPage from './features/entries/EntryPage';
-import CollaborationPage from './features/members/CollaborationPage';
 import BlockedUsersPage from './features/members/BlockedUsersPage';
 import JoinPage from './features/members/JoinPage';
 import MapPage from './features/maps/MapPage';
+import GraphPage from './features/graph/GraphPage';
 
 export default function App() {
+  useEffect(() => {
+    document.body.classList.add('dark');
+  }, []);
+
   return (
     <Routes>
       <Route path="/login" element={<LoginPage/>}/>
@@ -25,8 +29,6 @@ export default function App() {
       <Route path="/register" element={<RegisterPage/>}/>
 
       <Route path="/" element={<ProtectedRoute><WorldsPage/></ProtectedRoute>}/>
-
-      <Route path="/worlds/new" element={<ProtectedRoute><NewWorldPage/></ProtectedRoute>}/>
 
       <Route path="/worlds/:id" element={<WorldPage/>}/>
 
@@ -42,7 +44,7 @@ export default function App() {
 
       <Route path="/worlds/:id/maps/:mapId" element={<MapPage/>}/>
 
-      <Route path="/worlds/:id/collaboration" element={<ProtectedRoute><CollaborationPage/></ProtectedRoute>}/>
+      <Route path="/worlds/:id/graph" element={<GraphPage/>}/>
 
       <Route path="/worlds/:id/entries" element={<EntriesPage/>}/>
 

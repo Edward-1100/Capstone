@@ -19,7 +19,7 @@ describe('normalizeConfig', () => {
     });
 
     it('rejects a blank name', () => {
-      expect(() => normalizeConfig('boolean', {trueLabel: '  ', falseLabel: 'No'})).toThrow('Option name must be 1 to 50 characters');
+      expect(() => normalizeConfig('boolean', {trueLabel: '  ', falseLabel: 'No'})).toThrow('Option name can not be blank');
     });
   });
 
@@ -93,9 +93,9 @@ describe('normalizeConfig', () => {
     it('rejects no options and more than 50', () => {
       const many = Array.from({length: 51}, (item, index) => ({label: `Option ${index}`}));
 
-      expect(() => normalizeConfig('choice', {options: []})).toThrow('Add 1 to 50 options');
-      expect(() => normalizeConfig('choice', {options: many})).toThrow('Add 1 to 50 options');
-      expect(() => normalizeConfig('choice', {})).toThrow('Add 1 to 50 options');
+      expect(() => normalizeConfig('choice', {options: []})).toThrow('Options must be between 1 and 50');
+      expect(() => normalizeConfig('choice', {options: many})).toThrow('Options must be between 1 and 50');
+      expect(() => normalizeConfig('choice', {})).toThrow('Options must be between 1 and 50');
     });
 
     it('allows exactly 50 options', () => {
@@ -106,7 +106,7 @@ describe('normalizeConfig', () => {
     });
 
     it('rejects a blank option name', () => {
-      expect(() => normalizeConfig('choice', {options: [{label: '   '}]})).toThrow('Option name must be 1 to 50 characters');
+      expect(() => normalizeConfig('choice', {options: [{label: '   '}]})).toThrow('Option name can not be blank');
     });
   });
 

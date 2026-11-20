@@ -35,3 +35,7 @@ export function deleteThumbnailRequest(id) {
 export function getDashboardRequest(id) {
   return apiFetch(`/worlds/${id}/dashboard`);
 }
+
+export function getWorldStatsRequest(id) {
+  return apiFetch(`/worlds/${id}/dashboard/stats`);
+}

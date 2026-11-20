@@ -36,3 +36,28 @@ export async function apiFetch(path, options = {}) {
 
   return data;
 }
+
+export async function apiDownload(path, body) {
+  const token = getToken();
+  const headers = {'Content-Type': 'application/json'};
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`/api${path}`, {method: 'POST', headers, body: JSON.stringify(body)});
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    const message = Array.isArray(data?.message) ? data.message.join(', ') : data?.message;
+    const error = new Error(message || 'Request failed');
+
+    error.status = response.status;
+
+    throw error;
+  }
+
+  const match = (response.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/);
+
+  return {blob: await response.blob(), filename: match ? match[1] : 'world-export.json'};
+}

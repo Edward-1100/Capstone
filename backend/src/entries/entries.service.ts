@@ -250,12 +250,8 @@ export class EntriesService {
       [entryId],
     );
     const withUrls = await Promise.all(images.rows.map(async (row) => ({id: row.id, position: row.position, url: await this.storage.getUrl(row.storage_key)})));
-    const typeFields = entry.typeId
-      ? await this.db.query('SELECT id, name, field_type AS "fieldType", required, position, config FROM type_fields WHERE type_id = $1 ORDER BY position, created_at', [entry.typeId])
-      : null;
-    const parent = entry.parentId
-      ? await this.db.query('SELECT id, name FROM active_entries WHERE id = $1 AND world_id = $2', [entry.parentId, worldId])
-      : null;
+    const typeFields = entry.typeId ? await this.db.query('SELECT id, name, field_type AS "fieldType", required, position, config FROM type_fields WHERE type_id = $1 ORDER BY position, created_at', [entry.typeId]) : null;
+    const parent = entry.parentId ? await this.db.query('SELECT id, name FROM active_entries WHERE id = $1 AND world_id = $2', [entry.parentId, worldId]) : null;
     const children = await this.db.query('SELECT id, name FROM active_entries WHERE parent_id = $1 AND world_id = $2 ORDER BY lower(name)', [entryId, worldId]);
 
     return Object.assign({}, entry, {

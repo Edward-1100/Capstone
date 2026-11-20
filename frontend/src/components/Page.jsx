@@ -1,17 +1,6 @@
-import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
-export default function Page({crumbs = [], size = '', theme = '', children}) {
-  useEffect(() => {
-    if (!theme) {
-      return undefined;
-    }
-
-    document.body.classList.add(theme);
-
-    return () => document.body.classList.remove(theme);
-  }, [theme]);
-
+export default function Page({crumbs = [], size = '', children}) {
   return (
     <div className={`page ${size}`}>
       {crumbs.length > 0 && (

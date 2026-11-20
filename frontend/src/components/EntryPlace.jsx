@@ -2,14 +2,14 @@ import { Fragment, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ancestorsRequest, parentOptionsRequest } from '../api/nesting';
 
-export default function EntryPlace({worldId, entry, types, canEdit, editing, onEdit, onCancel, onSave}) {
+export default function EntryPlace({worldId, entry, types, canEdit, editing, onCancel, onSave}) {
   const [ancestors, setAncestors] = useState([]);
   const [options, setOptions] = useState([]);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState('');
 
   const nestable = types.some((type) => type.id === entry.typeId && type.nestMode !== 'none');
-  const open = editing === 'parent';
+  const open = editing === 'type' && canEdit && nestable;
   const trail = entry.parentId ? (ancestors.length > 0 ? ancestors : [entry.parent]) : [];
 
   useEffect(() => {
@@ -27,16 +27,12 @@ export default function EntryPlace({worldId, entry, types, canEdit, editing, onE
       return;
     }
 
+    setDraft(entry.parentId || '');
+    setError('');
     parentOptionsRequest(worldId, entry.typeId, entry.id)
       .then(setOptions)
       .catch((err) => setError(err.message));
-  }, [open, worldId, entry.typeId, entry.id]);
-
-  function handleEdit() {
-    setDraft(entry.parentId || '');
-    setError('');
-    onEdit();
-  }
+  }, [open, worldId, entry.typeId, entry.id, entry.parentId]);
 
   function handleSubmit(event) {
     event.preventDefault();
@@ -49,26 +45,22 @@ export default function EntryPlace({worldId, entry, types, canEdit, editing, onE
 
   return (
     <div>
-      {!open && (entry.parentId || (canEdit && nestable)) && (
-        <div className="line">
-          <span>
-            Inside:{' '}
-            {trail.length === 0 && 'nothing'}
-            {trail.map((item, index) => (
-              <Fragment key={item.id}>
-                {index > 0 && ' / '}
-                <Link to={`/worlds/${worldId}/entries/${item.id}`}>{item.name}</Link>
-              </Fragment>
-            ))}
-          </span>
-
-          {canEdit && nestable && <button type="button" onClick={handleEdit}>Edit</button>}
-        </div>
+      {!open && trail.length > 0 && (
+        <p className="muted">
+          {trail.map((item, index) => (
+            <Fragment key={item.id}>
+              {index > 0 && ' / '}
+              <Link to={`/worlds/${worldId}/entries/${item.id}`}>{item.name}</Link>
+            </Fragment>
+          ))}
+        </p>
       )}
 
       {open && (
         <form className="inline-form" onSubmit={handleSubmit}>
-          <select aria-label="Inside" value={draft} onChange={(e) => setDraft(e.target.value)}>
+          <label htmlFor="entry-inside">Inside</label>
+
+          <select id="entry-inside" value={draft} onChange={(e) => setDraft(e.target.value)}>
             <option value="">Nothing</option>
             {options.map((option) => <option key={option.id} value={option.id}>{option.name} ({option.typeName || 'No type'})</option>)}
           </select>

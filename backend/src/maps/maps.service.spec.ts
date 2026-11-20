@@ -255,7 +255,7 @@ describe('MapsService', () => {
 
       db.query.mockResolvedValueOnce({rows: [{}]}).mockResolvedValueOnce({rows: [{typeId: 't1', mappable: true}]}).mockRejectedValueOnce(duplicateError());
 
-      await expect(service.createMarker('w1', 'm1', 'u1', dto)).rejects.toThrow(new ConflictException('That entry is already on this map'));
+      await expect(service.createMarker('w1', 'm1', 'u1', dto)).rejects.toThrow(new ConflictException('Entry already exists on map'));
     });
 
     it('places the marker with the default color and image', async () => {

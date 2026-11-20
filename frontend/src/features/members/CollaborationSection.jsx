@@ -1,14 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
 import { createInviteLinkRequest, inviteMemberRequest, listInviteLinksRequest, listMembersRequest, removeMemberRequest, revokeInviteLinkRequest, setMemberRoleRequest } from '../../api/members';
-import { getWorldRequest } from '../../api/worlds';
-import Page from '../../components/Page';
 
-export default function CollaborationPage() {
-  const {id} = useParams();
-  const navigate = useNavigate();
-
-  const [world, setWorld] = useState(null);
+export default function CollaborationSection({id}) {
+  const [loaded, setLoaded] = useState(false);
   const [members, setMembers] = useState([]);
   const [links, setLinks] = useState([]);
   const [username, setUsername] = useState('');
@@ -21,20 +15,14 @@ export default function CollaborationPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    Promise.all([getWorldRequest(id), listMembersRequest(id), listInviteLinksRequest(id)])
-      .then(([worldData, memberData, linkData]) => {
-        if (worldData.role !== 'owner') {
-          navigate(`/worlds/${id}`, {replace: true});
-
-          return;
-        }
-
-        setWorld(worldData);
+    Promise.all([listMembersRequest(id), listInviteLinksRequest(id)])
+      .then(([memberData, linkData]) => {
         setMembers(memberData);
         setLinks(linkData);
+        setLoaded(true);
       })
-      .catch(() => navigate('/', {replace: true}));
-  }, [id, navigate]);
+      .catch((err) => setError(err.message));
+  }, [id]);
 
   async function reloadMembers() {
     setMembers(await listMembersRequest(id));
@@ -113,19 +101,25 @@ export default function CollaborationPage() {
     }
   }
 
-  if (!world) {
-    return <Page><p>Loading</p></Page>;
+  if (!loaded) {
+    return (
+      <section className="card">
+        <h2>Collaboration</h2>
+
+        {error ? <p role="alert">{error}</p> : <p>Loading</p>}
+      </section>
+    );
   }
 
   return (
-    <Page size="medium" crumbs={[{to: '/', label: 'Your worlds'}, {to: `/worlds/${id}`, label: world.name}, {label: 'Collaboration'}]}>
-      <div className="panel">
-        <h1 className="title">Collaboration</h1>
+    <section className="card">
+      <h2>Collaboration</h2>
 
+      <div className="stack">
         {error && <p role="alert">{error}</p>}
 
         <div>
-          <h2>Members</h2>
+          <h3>Members</h3>
 
           <ul className="member-list">
             {members.map((member) => (
@@ -160,7 +154,7 @@ export default function CollaborationPage() {
         </div>
 
         <div>
-          <h2>Invite by username</h2>
+          <h3>Invite by username</h3>
 
           <form className="inline-form" onSubmit={handleInvite}>
             <input type="text" aria-label="Username" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} maxLength={45}/>
@@ -177,7 +171,7 @@ export default function CollaborationPage() {
         </div>
 
         <div>
-          <h2>Invite links</h2>
+          <h3>Invite links</h3>
 
           {links.length === 0 && <p className="muted">No invite links</p>}
 
@@ -213,6 +207,6 @@ export default function CollaborationPage() {
           </form>
         </div>
       </div>
-    </Page>
+    </section>
   );
 }

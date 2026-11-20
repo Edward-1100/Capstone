@@ -17,6 +17,8 @@ import { NestingModule } from './nesting/nesting.module';
 import { RelationshipsModule } from './relationships/relationships.module';
 import { MembersModule } from './members/members.module';
 import { MapsModule } from './maps/maps.module';
+import { TransferModule } from './transfer/transfer.module';
+import { GraphModule } from './graph/graph.module';
 
 @Module({
   imports: [
@@ -38,7 +40,9 @@ import { MapsModule } from './maps/maps.module';
     NotesModule,
     MembersModule,
     MapsModule,
+    TransferModule,
     DashboardModule,
+    GraphModule,
   ],
   controllers: [AppController],
   providers: [],
