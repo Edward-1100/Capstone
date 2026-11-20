@@ -16,7 +16,7 @@ export class NotesService {
 
   private async find(worldId: string, noteId: string) {
     const result = await this.db.query(
-      `SELECT n.id, n.body, n.author_id AS "authorId", u.username AS "authorName",
+      `SELECT n.id, n.body, n.author_id AS "authorId", COALESCE(n.author_label, u.username) AS "authorName",
               n.created_at AS "createdAt", n.updated_at AS "updatedAt", n.updated_at > n.created_at AS edited
        FROM notes n
        JOIN active_entries e ON e.id = n.entry_id
@@ -36,7 +36,7 @@ export class NotesService {
     await this.activeEntry(worldId, entryId);
 
     const result = await this.db.query(
-      `SELECT n.id, n.body, n.author_id AS "authorId", u.username AS "authorName",
+      `SELECT n.id, n.body, n.author_id AS "authorId", COALESCE(n.author_label, u.username) AS "authorName",
               n.created_at AS "createdAt", n.updated_at AS "updatedAt", n.updated_at > n.created_at AS edited
        FROM notes n
        LEFT JOIN users u ON u.id = n.author_id

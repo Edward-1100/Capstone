@@ -36,7 +36,7 @@ describe('MembersService', () => {
 
       db.query.mockResolvedValueOnce({rows: [{id: 'u2'}]}).mockResolvedValueOnce({rows: [{'?column?': 1}]});
 
-      await expect(service.invite('w1', 'u1', 'Sam', 'editor')).rejects.toThrow(new ForbiddenException('That user can not be invited'));
+      await expect(service.invite('w1', 'u1', 'Sam', 'editor')).rejects.toThrow(new ForbiddenException('User can not be invited'));
       expect(db.query.mock.calls[1][1]).toEqual(['u2', 'u1']);
       expect(db.query).toHaveBeenCalledTimes(2);
     });
@@ -92,7 +92,7 @@ describe('MembersService', () => {
         .mockResolvedValueOnce({rows: []})
         .mockResolvedValueOnce({rows: [{role: 'editor', invitedRole: null}]});
 
-      await expect(service.invite('w1', 'u1', 'Sam', 'viewer')).rejects.toThrow(new ConflictException('That person already has access'));
+      await expect(service.invite('w1', 'u1', 'Sam', 'viewer')).rejects.toThrow(new ConflictException('User already has access'));
     });
 
     it('rejects an editor invite that is already pending', async () => {

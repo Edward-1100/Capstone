@@ -3,7 +3,7 @@ import { useState } from 'react';
 const MAX_SIZE = 2 * 1024 * 1024;
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 
-export default function WorldForm({initial, currentThumbnailUrl, submitLabel, onSubmit, onRemoveThumbnail}) {
+export default function WorldForm({initial, currentThumbnailUrl, submitLabel, onSubmit, onRemoveThumbnail, formId = undefined, hideSubmit = false}) {
   const [name, setName] = useState(initial.name);
   const [description, setDescription] = useState(initial.description);
   const [visibility, setVisibility] = useState(initial.visibility);
@@ -64,6 +64,11 @@ export default function WorldForm({initial, currentThumbnailUrl, submitLabel, on
 
   async function handleSubmit(event) {
     event.preventDefault();
+
+    if (submitting) {
+      return;
+    }
+
     setError('');
     setSubmitting(true);
 
@@ -76,37 +81,44 @@ export default function WorldForm({initial, currentThumbnailUrl, submitLabel, on
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <div>
-        <label htmlFor="name">Name</label>
-        <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} required/>
-      </div>
+    <form id={formId} className="world-form" onSubmit={handleSubmit}>
+      <div className="form-grid">
+        <div>
+          <label htmlFor="name">Name</label>
+          <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} required/>
+        </div>
 
-      <div>
-        <label htmlFor="description">Description</label>
-        <textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={5000}/>
-      </div>
+        <div>
+          <label htmlFor="visibility">Visibility</label>
+          <select id="visibility" value={visibility} onChange={(e) => setVisibility(e.target.value)}>
+            <option value="private">Private</option>
+            <option value="public">Public</option>
+          </select>
+        </div>
 
-      <div>
-        <label htmlFor="visibility">Visibility</label>
-        <select id="visibility" value={visibility} onChange={(e) => setVisibility(e.target.value)}>
-          <option value="private">Private</option>
-          <option value="public">Public</option>
-        </select>
-      </div>
+        <div className="span">
+          <label htmlFor="description">Description</label>
+          <textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={5000}/>
+        </div>
 
-      <div>
-        <label htmlFor="thumbnail">Thumbnail (PNG, JPEG, or WebP, up to 2 MB)</label>
-        <input id="thumbnail" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFileChange}/>
+        <div className="span">
+          <label htmlFor="thumbnail">Thumbnail (PNG, JPEG, or WebP, up to 2 MB)</label>
 
-        {shownUrl && <img className="preview" src={shownUrl} alt="Thumbnail"/>}
+          <div className="thumbnail-row">
+            {shownUrl && <img className="preview" src={shownUrl} alt="Thumbnail"/>}
 
-        {currentThumbnailUrl && !previewUrl && onRemoveThumbnail && <button type="button" onClick={handleRemove}>Remove thumbnail</button>}
+            <div>
+              <input id="thumbnail" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFileChange}/>
+
+              {currentThumbnailUrl && !previewUrl && onRemoveThumbnail && <button type="button" onClick={handleRemove}>Remove thumbnail</button>}
+            </div>
+          </div>
+        </div>
       </div>
 
       {error && <p role="alert">{error}</p>}
 
-      <button type="submit" disabled={submitting}>{submitLabel}</button>
+      {!hideSubmit && <button type="submit" disabled={submitting}>{submitLabel}</button>}
     </form>
   );
 }

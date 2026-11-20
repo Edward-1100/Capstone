@@ -290,7 +290,7 @@ export default function EntryView({worldId, entryId, role, pageLink, sideNotes, 
 
         {editors.length > 0 && <p className="editing-notice" role="status">{editorsLabel(editors)}</p>}
 
-        <EntryPlace worldId={worldId} entry={entry} types={types} canEdit={canEdit} editing={editing} onEdit={() => startEdit('parent')} onCancel={cancelEdit} onSave={(parentId) => save({parentId})}/>
+        <EntryPlace worldId={worldId} entry={entry} types={types} canEdit={canEdit} editing={editing} onCancel={cancelEdit} onSave={(parentId) => save({parentId})}/>
       </div>
 
       {conflict && <EntryConflict current={conflict.current} items={conflict.items} choices={conflict.choices} types={types} allEntries={allEntries} mineName={user ? user.username : 'You'} onChoose={handleChoose} onSave={handleResolve} onDiscard={handleDiscard}/>}

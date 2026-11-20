@@ -87,13 +87,13 @@ export class MembersService {
     );
 
     if (blocked.rows.length > 0) {
-      throw new ForbiddenException('That user can not be invited');
+      throw new ForbiddenException('User can not be invited');
     }
 
     const status = await this.grant(worldId, target.id, role, inviterId);
 
     if (status === 'unchanged') {
-      throw new ConflictException('That person already has access');
+      throw new ConflictException('User already has access');
     }
 
     return this.findMember(worldId, target.id);

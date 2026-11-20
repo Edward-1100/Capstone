@@ -193,9 +193,9 @@ describe('NestingService', () => {
 
       const sql = String(client.query.mock.calls[0][0]);
 
-      expect(sql).toContain("ct.nest_mode = 'all'");
-      expect(sql).toContain("ct.nest_mode = 'own' AND ct.id = p.type_id");
-      expect(sql).toContain("ct.nest_mode = 'chosen'");
+      expect(sql).toContain(`ct.nest_mode = 'all'`);
+      expect(sql).toContain(`ct.nest_mode = 'own' AND ct.id = p.type_id`);
+      expect(sql).toContain(`ct.nest_mode = 'chosen'`);
       expect(sql).not.toContain('nestable');
     });
 

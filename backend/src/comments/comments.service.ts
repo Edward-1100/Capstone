@@ -16,7 +16,7 @@ export class CommentsService {
 
   private async find(worldId: string, commentId: string) {
     const result = await this.db.query(
-      `SELECT c.id, c.body, c.author_id AS "authorId", u.username AS "authorName",
+      `SELECT c.id, c.body, c.author_id AS "authorId", COALESCE(c.author_label, u.username) AS "authorName",
               c.created_at AS "createdAt", c.updated_at AS "updatedAt", c.updated_at > c.created_at AS edited
        FROM comments c
        JOIN active_entries e ON e.id = c.entry_id
@@ -36,7 +36,7 @@ export class CommentsService {
     await this.activeEntry(worldId, entryId);
 
     const result = await this.db.query(
-      `SELECT c.id, c.body, c.author_id AS "authorId", u.username AS "authorName",
+      `SELECT c.id, c.body, c.author_id AS "authorId", COALESCE(c.author_label, u.username) AS "authorName",
               c.created_at AS "createdAt", c.updated_at AS "updatedAt", c.updated_at > c.created_at AS edited
        FROM comments c
        LEFT JOIN users u ON u.id = c.author_id
