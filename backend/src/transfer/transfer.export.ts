@@ -34,6 +34,16 @@ function group(rows: any[], key: string) {
   return result;
 }
 
+function conditionValue(condition: any) {
+  if (condition.op !== 'any' && condition.op !== 'all') {
+    return condition.value ?? null;
+  }
+
+  const options = condition.fieldConfig?.options ?? [];
+
+  return (condition.value ?? []).map((id: string) => options.find((option: any) => option.id === id)?.label).filter((label: any) => typeof label === 'string');
+}
+
 @Injectable()
 export class TransferExportService {
   constructor(private readonly db: DatabaseService, private readonly storage: StorageService) {}
@@ -47,15 +57,20 @@ export class TransferExportService {
     }
 
     const query = async (text: string) => (await this.db.query(text, [worldId])).rows;
-    const types = await query('SELECT id, name, nest_mode AS "nestMode", mappable FROM entry_types WHERE world_id = $1 ORDER BY lower(name)');
+    const types = await query('SELECT id, name, nest_mode AS "nestMode", mappable, timelineable FROM entry_types WHERE world_id = $1 ORDER BY lower(name)');
     const fields = group(await query('SELECT f.id, f.type_id AS "typeId", f.name, f.field_type AS "fieldType", f.required, f.position, f.config FROM type_fields f JOIN entry_types t ON t.id = f.type_id WHERE t.world_id = $1 ORDER BY f.position, lower(f.name)'), 'typeId');
     const rules = group(await query('SELECT type_id AS "typeId", parent_type_id AS "parentTypeId" FROM type_parent_rules WHERE world_id = $1'), 'typeId');
     const relationshipTypes = await query('SELECT id, name, description, from_any AS "fromAny", to_any AS "toAny" FROM relationship_types WHERE world_id = $1 ORDER BY lower(name)');
     const ends = group(await query('SELECT relationship_type_id AS "typeId", side, entry_type_id AS "entryTypeId" FROM relationship_type_ends WHERE world_id = $1'), 'typeId');
     const tags = await query('SELECT id, name, color, rule_match AS "ruleMatch" FROM tags WHERE world_id = $1 ORDER BY lower(name)');
-    const conditions = group(await query('SELECT tag_id AS "tagId", exclude, kind, entry_type_id AS "typeId", relationship_type_id AS "relationshipTypeId", side, other_any AS "otherAny", other_entry_id AS "otherEntryId", inside_entry_id AS "insideEntryId" FROM tag_rule_conditions WHERE world_id = $1 ORDER BY tag_id, position'), 'tagId');
+    const conditions = group(await query('SELECT c.tag_id AS "tagId", c.exclude, c.kind, c.entry_type_id AS "typeId", c.relationship_type_id AS "relationshipTypeId", c.side, c.other_any AS "otherAny", c.other_entry_id AS "otherEntryId", c.inside_entry_id AS "insideEntryId", c.field_id AS "fieldId", c.op, c.value, f.type_id AS "fieldTypeId", f.config AS "fieldConfig" FROM tag_rule_conditions c LEFT JOIN type_fields f ON f.id = c.field_id WHERE c.world_id = $1 ORDER BY c.tag_id, c.position'), 'tagId');
     const entries = await query('SELECT id, type_id AS "typeId", name, description, fields, parent_id AS "parentId" FROM active_entries WHERE world_id = $1 ORDER BY created_at, id');
     const active = new Set(entries.map((entry) => entry.id));
+    const timeline = new Map<string, any>();
+
+    for (const row of await query('SELECT entry_id AS "entryId", start_year AS "startYear", start_month AS "startMonth", start_day AS "startDay", start_hour AS "startHour", start_minute AS "startMinute", end_year AS "endYear", end_month AS "endMonth", end_day AS "endDay", end_hour AS "endHour", end_minute AS "endMinute", color FROM timeline_entries WHERE world_id = $1')) {
+      timeline.set(row.entryId, {startYear: row.startYear, startMonth: row.startMonth, startDay: row.startDay, startHour: row.startHour, startMinute: row.startMinute, endYear: row.endYear, endMonth: row.endMonth, endDay: row.endDay, endHour: row.endHour, endMinute: row.endMinute, color: row.color});
+    }
     const ruleEntries = group((await query('SELECT tag_id AS "tagId", entry_id AS "entryId", exclude FROM tag_rule_entries WHERE world_id = $1')).filter((row) => active.has(row.entryId)), 'tagId');
     const entryTags = group(await query('SELECT entry_id AS "entryId", tag_id AS "tagId" FROM entry_tags WHERE world_id = $1'), 'entryId');
     const images = await query('SELECT i.id, i.entry_id AS "entryId", i.position, i.storage_key AS "storageKey" FROM entry_images i JOIN active_entries e ON e.id = i.entry_id WHERE e.world_id = $1 ORDER BY i.position');
@@ -76,6 +91,7 @@ export class TransferExportService {
         name: type.name,
         nestMode: type.nestMode,
         mappable: type.mappable,
+        timelineable: type.timelineable,
         fields: (fields[type.id] ?? []).map((field) => ({ref: field.id, name: field.name, fieldType: field.fieldType, required: field.required, position: field.position, config: field.config})),
         parents: (rules[type.id] ?? []).map((rule) => rule.parentTypeId),
       })),
@@ -96,12 +112,15 @@ export class TransferExportService {
         conditions: (conditions[tag.id] ?? []).map((condition) => ({
           exclude: condition.exclude,
           kind: condition.kind,
-          typeRef: condition.typeId,
+          typeRef: condition.typeId ?? condition.fieldTypeId,
           relationshipTypeRef: condition.relationshipTypeId,
           side: condition.side,
           otherAny: condition.otherAny,
           otherEntryRef: condition.otherEntryId,
           insideEntryRef: condition.insideEntryId,
+          fieldRef: condition.fieldId,
+          op: condition.op,
+          value: conditionValue(condition),
         })),
         ruleEntries: (ruleEntries[tag.id] ?? []).map((item) => ({entryRef: item.entryId, exclude: item.exclude})),
       })),
@@ -116,6 +135,7 @@ export class TransferExportService {
         images: (imagesByEntry[entry.id] ?? []).map((image) => ({position: image.position, data: null})),
         comments: [],
         notes: [],
+        timeline: timeline.get(entry.id) ?? null,
       })),
       relationships: relationships.map((relationship) => ({ref: relationship.id, typeRef: relationship.typeId, fromRef: relationship.fromId, toRef: relationship.toId})),
       maps: maps.map((map) => ({
@@ -291,7 +311,7 @@ export class TransferExportService {
 
     doc.exportedAt = new Date().toISOString();
     doc.exportedBy = username;
-
+    
     /**
     const output = JSON.stringify(doc);
 

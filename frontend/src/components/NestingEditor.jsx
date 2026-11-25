@@ -1,27 +1,12 @@
 import { useState } from 'react';
 import { setEntryTypeNestingRequest } from '../api/nesting';
-import TypeChips from './TypeChips';
-
-const MODES = [
-  {value: 'none', label: 'Can not be nested'},
-  {value: 'chosen', label: 'Inside chosen types'},
-  {value: 'all', label: 'Inside any type'},
-  {value: 'own', label: 'Inside its own type only'},
-];
+import NestingFields from './NestingFields';
 
 export default function NestingEditor({worldId, type, types, onChanged, onCancel}) {
   const [mode, setMode] = useState(type.nestMode);
   const [parentTypeIds, setParentTypeIds] = useState(type.parentTypeIds);
   const [pending, setPending] = useState(null);
   const [error, setError] = useState('');
-
-  function handleAddParent(typeId) {
-    setParentTypeIds(parentTypeIds.concat(typeId));
-  }
-
-  function handleRemoveParent(typeId) {
-    setParentTypeIds(parentTypeIds.filter((item) => item !== typeId));
-  }
 
   async function run(confirmUnlink) {
     setError('');
@@ -59,30 +44,12 @@ export default function NestingEditor({worldId, type, types, onChanged, onCancel
 
   return (
     <section className="nest-editor">
-      <h3>{type.name}</h3>
-
       <form onSubmit={handleSubmit}>
-        <fieldset>
-          <legend>Where it can go</legend>
-
-          {MODES.map((item) => (
-            <label key={item.value}>
-              <input type="radio" name={`nest-mode-${type.id}`} checked={mode === item.value} onChange={() => setMode(item.value)}/> {item.label}
-            </label>
-          ))}
-        </fieldset>
-
-        {mode === 'chosen' && (
-          <fieldset>
-            <legend>Types it can go inside</legend>
-
-            <TypeChips selected={types.filter((other) => parentTypeIds.includes(other.id))} available={types.filter((other) => !parentTypeIds.includes(other.id))} onAdd={handleAddParent} onRemove={handleRemoveParent} emptyText="No types chosen" label="Add a type"/>
-          </fieldset>
-        )}
+        <NestingFields name={`nest-mode-${type.id}`} types={types} mode={mode} parentTypeIds={parentTypeIds} onMode={setMode} onParentTypeIds={setParentTypeIds}/>
 
         <div className="actions">
-          <button type="submit">Save</button>
-          <button type="button" onClick={onCancel}>Cancel</button>
+          <button type="submit">Save nesting</button>
+          {onCancel && <button type="button" onClick={onCancel}>Cancel</button>}
         </div>
       </form>
 

@@ -57,9 +57,33 @@ describe('parseDocument', () => {
     expect(doc.maps[0].markers[0]).toMatchObject({color: '#d93025', innerColor: '#ffffff', imageScale: 4, imageX: -1});
   });
 
+  it('keeps field conditions and drops values it cannot use', () => {
+    const doc = parse(Object.assign({}, base, {
+      tags: [{ref: 't', name: 'T', conditions: [
+        {kind: 'detail', typeRef: 'x', fieldRef: 'f', op: 'any', value: ['Mage', 'Rogue']},
+        {kind: 'detail', typeRef: 'x', fieldRef: 'f', op: 'gte', value: 4},
+        {kind: 'detail', typeRef: 'x', fieldRef: 'f', op: 'is', value: {bad: true}},
+      ]}],
+    }));
+
+    expect(doc.tags[0].conditions.map((item) => [item.fieldRef, item.op, item.value])).toEqual([['f', 'any', ['Mage', 'Rogue']], ['f', 'gte', 4], ['f', 'is', null]]);
+  });
+
   it('keeps comment details and drops bad dates', () => {
     const doc = parse(Object.assign({}, base, {entries: [{ref: 'a', name: 'A', comments: [{author: 'Sam', body: 'Hi', createdAt: 'later'}, {body: 'Yo', createdAt: '2026-01-02T03:04:05Z'}]}]}));
 
     expect(doc.entries[0].comments).toEqual([{author: 'Sam', body: 'Hi', createdAt: null}, {author: 'Unknown', body: 'Yo', createdAt: '2026-01-02T03:04:05.000Z'}]);
+  });
+
+  it('reads timeline dates and the timelineable flag', () => {
+    const doc = parse(Object.assign({}, base, {entryTypes: [{ref: 't', name: 'Events', timelineable: true}], entries: [{ref: 'a', name: 'A', timeline: {startYear: 10, startMonth: 2, endYear: 12, color: '#AABBCC'}}, {ref: 'b', name: 'B'}]}));
+
+    expect(doc.entryTypes[0].timelineable).toBe(true);
+    expect(doc.entries[0].timeline).toEqual({startYear: 10, startMonth: 2, startDay: null, startHour: null, startMinute: null, endYear: 12, endMonth: null, endDay: null, endHour: null, endMinute: null, color: '#aabbcc'});
+    expect(doc.entries[1].timeline).toBeNull();
+  });
+
+  it('rejects bad timeline dates', () => {
+    expect(message(Object.assign({}, base, {entries: [{ref: 'a', name: 'A', timeline: {startYear: 5, startDay: 3}}]}))).toContain('A timeline');
   });
 });

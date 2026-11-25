@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import SinglePick from './SinglePick';
 import Typeahead from './Typeahead';
 
 export function describeRelation(value, relationshipTypes, entries) {
@@ -21,29 +22,33 @@ export default function RelationPicker({relationshipTypes, entries, selected, on
     }
   }
 
+  const typeOptions = relationshipTypes.map((type) => ({id: type.id, label: type.name}));
+
   return (
-    <div className="pick-box">
-      {selected.map((value) => (
-        <span key={value} className="chip">
-          {describeRelation(value, relationshipTypes, entries)}
-
-          <button type="button" aria-label={`Remove ${describeRelation(value, relationshipTypes, entries)}`} onClick={() => onRemove(value)}>&times;</button>
-        </span>
-      ))}
-
+    <div className="pick-box relation-picker">
       <div className="relation-controls">
-        <select className="small" aria-label={`${label} relationship type`} value={typeId} onChange={(e) => setTypeId(e.target.value)}>
-          <option value="">Relationship type</option>
-          {relationshipTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
-        </select>
+        <SinglePick options={typeOptions} value={typeId} onChange={setTypeId} placeholder="Search for a relationship type" label={`${label} relationship type`}/>
 
-        <select className="small" aria-label={`${label} direction`} value={side} onChange={(e) => setSide(e.target.value)}>
-          <option value="to">to</option>
-          <option value="from">from</option>
-        </select>
+        <div className="toggle" role="group" aria-label={`${label} direction`}>
+          <button type="button" className={side === 'to' ? 'on' : ''} onClick={() => setSide('to')}>To</button>
+          <button type="button" className={side === 'from' ? 'on' : ''} onClick={() => setSide('from')}>From</button>
+          <button type="button" className={side === 'either' ? 'on' : ''} onClick={() => setSide('either')}>Either</button>
+        </div>
 
-        {typeId ? <Typeahead options={options.filter((option) => !selected.includes(`${typeId}:${side}:${option.id}`))} onPick={handlePick} placeholder="Type an entry" label={`${label} entry`}/> : <span className="muted">Choose a type first</span>}
+        {typeId ? <Typeahead options={options.filter((option) => !selected.includes(`${typeId}:${side}:${option.id}`))} onPick={handlePick} placeholder="Search for an entry" label={`${label} entry`}/> : <span className="muted">Pick a type, then an entry</span>}
       </div>
+
+      {selected.length > 0 && (
+        <div className="pick-chips">
+          {selected.map((value) => (
+            <span key={value} className="chip">
+              {describeRelation(value, relationshipTypes, entries)}
+
+              <button type="button" aria-label={`Remove ${describeRelation(value, relationshipTypes, entries)}`} onClick={() => onRemove(value)}>&times;</button>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

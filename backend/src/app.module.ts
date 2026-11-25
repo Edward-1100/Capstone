@@ -19,6 +19,7 @@ import { MembersModule } from './members/members.module';
 import { MapsModule } from './maps/maps.module';
 import { TransferModule } from './transfer/transfer.module';
 import { GraphModule } from './graph/graph.module';
+import { TimelineModule } from './timeline/timeline.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { GraphModule } from './graph/graph.module';
     TransferModule,
     DashboardModule,
     GraphModule,
+    TimelineModule,
   ],
   controllers: [AppController],
   providers: [],

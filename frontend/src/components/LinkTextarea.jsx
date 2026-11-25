@@ -26,7 +26,7 @@ function rankSuggestions(entries, wanted) {
     .slice(0, MAX_SHOWN);
 }
 
-export default function LinkTextarea({value, onChange, entries, maxLength}) {
+export default function LinkTextarea({value, onChange, entries, maxLength, id, label, single = false}) {
   const boxRef = useRef(null);
   const pendingCaret = useRef(null);
   const [caret, setCaret] = useState(0);
@@ -86,12 +86,16 @@ export default function LinkTextarea({value, onChange, entries, maxLength}) {
     }
   }
 
+  const Box = single ? 'input' : 'textarea';
+
   return (
     <div className="link-textarea">
-      <textarea
+      <Box
         ref={boxRef}
-        className="description-input"
-        aria-label="Description"
+        id={id}
+        type={single ? 'text' : undefined}
+        className={single ? '' : 'description-input'}
+        aria-label={label || 'Description'}
         aria-autocomplete="list"
         aria-expanded={open}
         value={value}

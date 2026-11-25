@@ -1,15 +1,15 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import Typeahead from './Typeahead';
 import { ancestorsRequest, parentOptionsRequest } from '../api/nesting';
 
-export default function EntryPlace({worldId, entry, types, canEdit, editing, onCancel, onSave}) {
+export default function EntryPlace({worldId, entry, types, canEdit, onSave}) {
   const [ancestors, setAncestors] = useState([]);
   const [options, setOptions] = useState([]);
-  const [draft, setDraft] = useState('');
+  const [open, setOpen] = useState(false);
   const [error, setError] = useState('');
 
   const nestable = types.some((type) => type.id === entry.typeId && type.nestMode !== 'none');
-  const open = editing === 'type' && canEdit && nestable;
   const trail = entry.parentId ? (ancestors.length > 0 ? ancestors : [entry.parent]) : [];
 
   useEffect(() => {
@@ -27,16 +27,15 @@ export default function EntryPlace({worldId, entry, types, canEdit, editing, onC
       return;
     }
 
-    setDraft(entry.parentId || '');
     setError('');
     parentOptionsRequest(worldId, entry.typeId, entry.id)
       .then(setOptions)
       .catch((err) => setError(err.message));
-  }, [open, worldId, entry.typeId, entry.id, entry.parentId]);
+  }, [open, worldId, entry.typeId, entry.id]);
 
-  function handleSubmit(event) {
-    event.preventDefault();
-    onSave(draft || null);
+  function handlePick(parentId) {
+    setOpen(false);
+    onSave(parentId || null);
   }
 
   if (!entry.parentId && entry.children.length === 0 && !(canEdit && nestable)) {
@@ -44,32 +43,33 @@ export default function EntryPlace({worldId, entry, types, canEdit, editing, onC
   }
 
   return (
-    <div>
-      {!open && trail.length > 0 && (
-        <p className="muted">
+    <div className="entry-place">
+      {(nestable || trail.length > 0) && (
+        <div className="place-row">
+          <span className="muted">Inside</span>
+
+          {trail.length === 0 && <span className="muted">Nothing</span>}
+
           {trail.map((item, index) => (
             <Fragment key={item.id}>
-              {index > 0 && ' / '}
+              {index > 0 && <span className="muted">/</span>}
               <Link to={`/worlds/${worldId}/entries/${item.id}`}>{item.name}</Link>
             </Fragment>
           ))}
-        </p>
+
+          {canEdit && nestable && !open && <button type="button" onClick={() => setOpen(true)}>{entry.parentId ? 'Move' : 'Set'}</button>}
+          {canEdit && nestable && !open && entry.parentId && <button type="button" onClick={() => handlePick('')}>Remove</button>}
+        </div>
       )}
 
       {open && (
-        <form className="inline-form" onSubmit={handleSubmit}>
-          <label htmlFor="entry-inside">Inside</label>
+        <div className="place-pick">
+          <Typeahead options={options.map((option) => ({id: option.id, label: `${option.name} (${option.typeName || 'No type'})`}))} onPick={handlePick} placeholder="Search for the entry it is inside" label="Inside" showCount={false}/>
 
-          <select id="entry-inside" value={draft} onChange={(e) => setDraft(e.target.value)}>
-            <option value="">Nothing</option>
-            {options.map((option) => <option key={option.id} value={option.id}>{option.name} ({option.typeName || 'No type'})</option>)}
-          </select>
-
-          <button type="submit">Save</button>
-          <button type="button" onClick={onCancel}>Cancel</button>
+          <button type="button" onClick={() => setOpen(false)}>Cancel</button>
 
           {error && <p role="alert">{error}</p>}
-        </form>
+        </div>
       )}
 
       {entry.children.length > 0 && (

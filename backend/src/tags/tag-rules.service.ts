@@ -17,14 +17,76 @@ interface Condition {
   otherAny: boolean;
   otherEntryId: string | null;
   insideEntryId: string | null;
+  fieldId: string | null;
+  op: string | null;
+  value: any;
+}
+
+const NUMBER_OPS = ['eq', 'gte', 'lte', 'between'];
+const MAX_PICKED = 100;
+
+function isNumber(value: any) {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+export function checkDetail(condition: Condition, field: {fieldType: string; config: any}) {
+  const {op, value} = condition;
+
+  if (field.fieldType === 'number' || field.fieldType === 'scale') {
+    if (!NUMBER_OPS.includes(op as string)) {
+      throw new BadRequestException('Choose how to compare the number');
+    }
+
+    if (op === 'between') {
+      if (!Array.isArray(value) || value.length !== 2 || !isNumber(value[0]) || !isNumber(value[1])) {
+        throw new BadRequestException('Enter two numbers');
+      }
+
+      if (value[0] > value[1]) {
+        throw new BadRequestException('The first number must not be above the second');
+      }
+    } else if (!isNumber(value)) {
+      throw new BadRequestException('Enter a number');
+    }
+
+    return;
+  }
+
+  if (field.fieldType === 'boolean') {
+    if (op !== 'is' || typeof value !== 'boolean') {
+      throw new BadRequestException('Choose true or false');
+    }
+
+    return;
+  }
+
+  if (field.fieldType === 'choice' || field.fieldType === 'multi_choice') {
+    const allowed = field.fieldType === 'choice' ? ['any'] : ['any', 'all'];
+
+    if (!allowed.includes(op as string)) {
+      throw new BadRequestException('Choose how to compare the options');
+    }
+
+    const known = new Set((field.config?.options ?? []).map((option: any) => option.id));
+
+    if (!Array.isArray(value) || value.length === 0 || value.length > MAX_PICKED || value.some((item) => typeof item !== 'string' || !known.has(item))) {
+      throw new BadRequestException('Choose options from that field');
+    }
+
+    condition.value = Array.from(new Set(value));
+
+    return;
+  }
+
+  throw new BadRequestException('Choose a field that can be compared');
 }
 
 function cleanCondition(raw: any): Condition {
   if (!raw || typeof raw !== 'object') {
-    throw new BadRequestException('kind must be type, relationship or inside');
+    throw new BadRequestException('kind must be type, relationship, inside or detail');
   }
 
-  const condition: Condition = {exclude: raw.exclude === true, kind: raw.kind, entryTypeId: null, relationshipTypeId: null, side: null, otherAny: true, otherEntryId: null, insideEntryId: null};
+  const condition: Condition = {exclude: raw.exclude === true, kind: raw.kind, entryTypeId: null, relationshipTypeId: null, side: null, otherAny: true, otherEntryId: null, insideEntryId: null, fieldId: null, op: null, value: null};
 
   if (raw.kind === 'type') {
     if (!isUUID(raw.entryTypeId)) {
@@ -59,8 +121,20 @@ function cleanCondition(raw: any): Condition {
     }
 
     condition.insideEntryId = raw.insideEntryId;
+  } else if (raw.kind === 'detail') {
+    if (!isUUID(raw.fieldId)) {
+      throw new BadRequestException('Choose a field');
+    }
+
+    if (typeof raw.op !== 'string') {
+      throw new BadRequestException('Choose how to compare');
+    }
+
+    condition.fieldId = raw.fieldId;
+    condition.op = raw.op;
+    condition.value = raw.value ?? null;
   } else {
-    throw new BadRequestException('kind must be type, relationship or inside');
+    throw new BadRequestException('kind must be type, relationship, inside or detail');
   }
 
   return condition;
@@ -96,6 +170,7 @@ export class TagRulesService {
     const typeIds = unique(conditions.map((item) => item.entryTypeId));
     const relationshipTypeIds = unique(conditions.map((item) => item.relationshipTypeId));
     const entryIds = unique(conditions.map((item) => item.otherEntryId).concat(conditions.map((item) => item.insideEntryId)));
+    const fieldIds = unique(conditions.map((item) => item.fieldId));
 
     if (typeIds.length > 0) {
       const found = await client.query('SELECT id FROM entry_types WHERE world_id = $1 AND id = ANY($2::uuid[])', [worldId, typeIds]);
@@ -113,6 +188,26 @@ export class TagRulesService {
       }
     }
 
+    if (fieldIds.length > 0) {
+      const found = await client.query(
+        `SELECT f.id, f.field_type AS "fieldType", f.config
+         FROM type_fields f
+         JOIN entry_types t ON t.id = f.type_id
+         WHERE t.world_id = $1 AND f.id = ANY($2::uuid[])`,
+        [worldId, fieldIds],
+      );
+
+      if (found.rows.length !== fieldIds.length) {
+        throw new BadRequestException('Choose fields from this world');
+      }
+
+      for (const item of conditions) {
+        if (item.fieldId) {
+          checkDetail(item, found.rows.find((row: any) => row.id === item.fieldId));
+        }
+      }
+    }
+
     if (entryIds.length > 0) {
       const found = await client.query('SELECT id FROM active_entries WHERE world_id = $1 AND id = ANY($2::uuid[])', [worldId, entryIds]);
 
@@ -127,6 +222,7 @@ export class TagRulesService {
     const result = await this.db.query(
       `SELECT c.id, c.exclude, c.kind, c.entry_type_id AS "entryTypeId", c.relationship_type_id AS "relationshipTypeId", c.side,
               c.other_any AS "otherAny", c.other_entry_id AS "otherEntryId", c.inside_entry_id AS "insideEntryId",
+              c.field_id AS "fieldId", c.op, c.value,
               tag_condition_broken(c) AS broken
        FROM tag_rule_conditions c
        WHERE c.tag_id = $1
@@ -161,9 +257,9 @@ export class TagRulesService {
           const item = conditions[index];
 
           await client.query(
-            `INSERT INTO tag_rule_conditions (world_id, tag_id, position, exclude, kind, entry_type_id, relationship_type_id, side, other_any, other_entry_id, inside_entry_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-            [worldId, tagId, index, item.exclude, item.kind, item.entryTypeId, item.relationshipTypeId, item.side, item.otherAny, item.otherEntryId, item.insideEntryId],
+            `INSERT INTO tag_rule_conditions (world_id, tag_id, position, exclude, kind, entry_type_id, relationship_type_id, side, other_any, other_entry_id, inside_entry_id, field_id, op, value)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb)`,
+            [worldId, tagId, index, item.exclude, item.kind, item.entryTypeId, item.relationshipTypeId, item.side, item.otherAny, item.otherEntryId, item.insideEntryId, item.fieldId, item.op, item.value === null ? null : JSON.stringify(item.value)],
           );
         }
       }

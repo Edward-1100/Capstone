@@ -6,7 +6,7 @@ import { DatabaseService } from '../database/database.service';
 import { applyFieldValues } from '../entry-types/field-values';
 import { NestingService } from '../nesting/nesting.service';
 import { StorageService } from '../storage/storage.service';
-import { MAX_ENTRY_IMAGE, MAX_MAP_IMAGE, MAX_THUMBNAIL, TransferDocument, decodeImage } from './transfer.format';
+import { MAX_ENTRY_IMAGE, MAX_MAP_IMAGE, MAX_THUMBNAIL, TransferCondition, TransferDocument, decodeImage } from './transfer.format';
 import { Manifest, buildManifest, closeSelection } from './transfer.manifest';
 import { ImportPlan, Resolution } from './transfer.plan';
 
@@ -224,7 +224,7 @@ export class TransferImportService {
       const defs = new Map<string, FieldDefinition>();
 
       if (decision.action === 'create') {
-        const created = await run.client.query('INSERT INTO entry_types (world_id, name, nest_mode, mappable) VALUES ($1, $2, $3, $4) RETURNING id', [run.worldId, decision.name, type.nestMode, type.mappable]);
+        const created = await run.client.query('INSERT INTO entry_types (world_id, name, nest_mode, mappable, timelineable) VALUES ($1, $2, $3, $4, $5) RETURNING id', [run.worldId, decision.name, type.nestMode, type.mappable, type.timelineable]);
         const id = created.rows[0].id;
 
         run.typeMap.set(type.ref, id);
@@ -249,7 +249,7 @@ export class TransferImportService {
         let count = existing.rows.length;
 
         if (decision.action === 'replace') {
-          await run.client.query('UPDATE entry_types SET mappable = $2, updated_at = now() WHERE id = $1', [id, type.mappable]);
+          await run.client.query('UPDATE entry_types SET mappable = $2, timelineable = $3, updated_at = now() WHERE id = $1', [id, type.mappable, type.timelineable]);
         }
 
         for (const field of type.fields) {
@@ -437,6 +437,18 @@ export class TransferImportService {
         await this.importEntryImages(run, entry, id, decision.action === 'replace');
       }
 
+      if (entry.timeline) {
+        const dates = entry.timeline;
+
+        await run.client.query(
+          `INSERT INTO timeline_entries (world_id, entry_id, start_year, start_month, start_day, start_hour, start_minute, end_year, end_month, end_day, end_hour, end_minute, color, created_by)
+           SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+           WHERE EXISTS (SELECT 1 FROM entries e JOIN entry_types t ON t.id = e.type_id WHERE e.id = $2 AND t.timelineable)
+           ON CONFLICT (entry_id) DO UPDATE SET start_year = $3, start_month = $4, start_day = $5, start_hour = $6, start_minute = $7, end_year = $8, end_month = $9, end_day = $10, end_hour = $11, end_minute = $12, color = $13, updated_at = now()`,
+          [run.worldId, id, dates.startYear, dates.startMonth, dates.startDay, dates.startHour, dates.startMinute, dates.endYear, dates.endMonth, dates.endDay, dates.endHour, dates.endMinute, dates.color, run.userId],
+        );
+      }
+
       for (const tagRef of entry.tags) {
         const tagId = run.tagMap.get(tagRef);
 
@@ -506,6 +518,29 @@ export class TransferImportService {
     }
   }
 
+  private mapDetail(run: Run, condition: TransferCondition) {
+    const def = condition.typeRef && condition.fieldRef ? run.fieldDefs.get(condition.typeRef)?.get(condition.fieldRef) : undefined;
+
+    if (!def || !condition.op) {
+      return {fieldId: null, op: condition.op, value: condition.value};
+    }
+
+    if (condition.op !== 'any' && condition.op !== 'all') {
+      return {fieldId: def.id, op: condition.op, value: condition.value};
+    }
+
+    const options: any[] = def.config?.options ?? [];
+    const labels: any[] = Array.isArray(condition.value) ? condition.value : [];
+    const ids = labels.map((label) => options.find((option) => typeof label === 'string' && option.label.toLowerCase() === label.toLowerCase())?.id ?? null);
+    const found = ids.filter((id) => id !== null);
+
+    if (found.length === 0) {
+      return {fieldId: null, op: condition.op, value: []};
+    }
+
+    return {fieldId: def.id, op: condition.op, value: condition.op === 'all' && found.length < ids.length ? found.concat(['missing']) : found};
+  }
+
   private async importTagRules(run: Run) {
     for (const tag of run.doc.tags.filter((item) => run.chosen.tags.has(item.ref))) {
       const decision = run.decisions.tags.get(tag.ref)!;
@@ -524,11 +559,12 @@ export class TransferImportService {
         const relationshipTypeId = condition.relationshipTypeRef ? (run.relationshipTypeMap.get(condition.relationshipTypeRef) ?? null) : null;
         const otherEntryId = condition.otherEntryRef ? (run.entryMap.get(condition.otherEntryRef) ?? null) : null;
         const insideEntryId = condition.insideEntryRef ? (run.entryMap.get(condition.insideEntryRef) ?? null) : null;
+        const detail = condition.kind === 'detail' ? this.mapDetail(run, condition) : {fieldId: null, op: null, value: null};
 
         await run.client.query(
-          `INSERT INTO tag_rule_conditions (world_id, tag_id, position, exclude, kind, entry_type_id, relationship_type_id, side, other_any, other_entry_id, inside_entry_id)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-          [run.worldId, tagId, index, condition.exclude, condition.kind, typeId, relationshipTypeId, condition.side, condition.otherAny, otherEntryId, insideEntryId],
+          `INSERT INTO tag_rule_conditions (world_id, tag_id, position, exclude, kind, entry_type_id, relationship_type_id, side, other_any, other_entry_id, inside_entry_id, field_id, op, value)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb)`,
+          [run.worldId, tagId, index, condition.exclude, condition.kind, condition.kind === 'detail' ? null : typeId, relationshipTypeId, condition.side, condition.otherAny, otherEntryId, insideEntryId, detail.fieldId, detail.op, detail.value === null ? null : JSON.stringify(detail.value)],
         );
       }
 

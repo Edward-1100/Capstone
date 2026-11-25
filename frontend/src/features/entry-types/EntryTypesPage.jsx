@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { setEntryTypeMappableRequest } from '../../api/maps';
+import { setEntryTypeNestingRequest } from '../../api/nesting';
+import { setEntryTypeTimelineableRequest } from '../../api/timeline';
 import { createEntryTypeRequest, listEntryTypesRequest } from '../../api/entryTypes';
 import { getWorldRequest } from '../../api/worlds';
 import EntryTypeCell from '../../components/EntryTypeCell';
+import EntryTypeForm from '../../components/EntryTypeForm';
 import ItemGrid from '../../components/ItemGrid';
 import Page from '../../components/Page';
 
@@ -13,8 +17,7 @@ export default function EntryTypesPage() {
   const [world, setWorld] = useState(null);
   const [types, setTypes] = useState([]);
   const [adding, setAdding] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     Promise.all([getWorldRequest(id), listEntryTypesRequest(id)])
@@ -29,23 +32,23 @@ export default function EntryTypesPage() {
     setTypes(await listEntryTypesRequest(id));
   }
 
-  function closeAdd() {
-    setAdding(false);
-    setNewName('');
-    setError('');
-  }
+  async function handleCreate(data) {
+    const created = await createEntryTypeRequest(id, data.name);
 
-  async function handleCreate(event) {
-    event.preventDefault();
-    setError('');
-
-    try {
-      await createEntryTypeRequest(id, newName);
-      closeAdd();
-      await reload();
-    } catch (err) {
-      setError(err.message);
+    if (data.mappable) {
+      await setEntryTypeMappableRequest(id, created.id, true);
     }
+
+    if (data.timelineable) {
+      await setEntryTypeTimelineableRequest(id, created.id, true);
+    }
+
+    if (data.nestMode !== 'none') {
+      await setEntryTypeNestingRequest(id, created.id, data.nestMode === 'chosen' ? {mode: data.nestMode, parentTypeIds: data.parentTypeIds} : {mode: data.nestMode});
+    }
+
+    setAdding(false);
+    await reload();
   }
 
   if (!world) {
@@ -54,21 +57,13 @@ export default function EntryTypesPage() {
 
   const canEdit = world.role === 'owner' || world.role === 'editor';
 
-  const addForm = (
-    <form className="inline-form" onSubmit={handleCreate}>
-      <input type="text" aria-label="New type name" placeholder="Type name" value={newName} onChange={(e) => setNewName(e.target.value)} maxLength={50} required/>
-
-      <button type="submit">Add type</button>
-      <button type="button" onClick={closeAdd}>Cancel</button>
-
-      {error && <p role="alert">{error}</p>}
-    </form>
-  );
+  const addForm = <EntryTypeForm types={types} onSubmit={handleCreate} onCancel={() => setAdding(false)}/>;
+  const shown = types.filter((type) => type.name.toLowerCase().includes(query.trim().toLowerCase()));
 
   return (
-    <Page crumbs={[{to: `/worlds/${id}`, label: world.name}, {label: 'Entry types'}]}>
-      <ItemGrid storageKey="view-entry-types" canEdit={canEdit} newLabel="New type" adding={adding} onNew={() => setAdding(true)} addForm={addForm} empty={types.length === 0} emptyText="No entry types yet">
-        {types.map((type) => <EntryTypeCell key={type.id} worldId={id} type={type} types={types} canEdit={canEdit} onChanged={reload}/>)}
+    <Page size="medium" crumbs={[{to: `/worlds/${id}`, label: world.name}, {label: 'Entry types'}]}>
+      <ItemGrid title="Entry types" nameLabel="Name" columns={[{label: 'Entries', width: '4.5rem'}, {label: 'Fields', width: 'minmax(0, 3fr)'}, {label: 'Placed on', width: '10rem'}]} query={query} onQuery={setQuery} searchLabel="Search entry types" storageKey="view-entry-types" canEdit={canEdit} newLabel="New type" adding={adding} onNew={() => setAdding(true)} addForm={addForm} empty={shown.length === 0} emptyText="No entry types yet">
+        {shown.map((type) => <EntryTypeCell key={type.id} worldId={id} type={type} types={types} canEdit={canEdit} onChanged={reload}/>)}
       </ItemGrid>
     </Page>
   );

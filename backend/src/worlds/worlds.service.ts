@@ -39,8 +39,8 @@ export class WorldsService {
 
       for (const type of BUILT_IN_TYPES) {
         const created = await client.query(
-          'INSERT INTO entry_types (world_id, name, nest_mode, mappable) VALUES ($1, $2, $3, $4) RETURNING id',
-          [world.id, type.name, type.nestMode, type.mappable],
+          'INSERT INTO entry_types (world_id, name, nest_mode, mappable, timelineable) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+          [world.id, type.name, type.nestMode, type.mappable, type.timelineable],
         );
 
         typeIds[type.name] = created.rows[0].id;

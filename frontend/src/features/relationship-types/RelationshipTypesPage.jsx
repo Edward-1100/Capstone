@@ -18,6 +18,7 @@ export default function RelationshipTypesPage() {
   const [types, setTypes] = useState([]);
   const [entryTypes, setEntryTypes] = useState([]);
   const [adding, setAdding] = useState(false);
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     Promise.all([getWorldRequest(id), listRelationshipTypesRequest(id), listEntryTypesRequest(id)])
@@ -50,10 +51,12 @@ export default function RelationshipTypesPage() {
 
   const addForm = <RelationshipTypeForm initial={NEW_TYPE} entryTypes={entryTypes} submitLabel="Add relationship type" onSubmit={handleCreate} onCancel={() => setAdding(false)}/>;
 
+  const shown = types.filter((type) => type.name.toLowerCase().includes(query.trim().toLowerCase()));
+
   return (
-    <Page crumbs={[{to: `/worlds/${id}`, label: world.name}, {label: 'Relationship types'}]}>
-      <ItemGrid storageKey="view-relationship-types" canEdit={canEdit} newLabel="New relationship type" adding={adding} onNew={() => setAdding(true)} addForm={addForm} empty={types.length === 0} emptyText="No relationship types yet">
-        {types.map((type) => <RelationshipTypeCell key={type.id} worldId={id} type={type} entryTypes={entryTypes} canEdit={canEdit} onChanged={reload}/>)}
+    <Page size="medium" crumbs={[{to: `/worlds/${id}`, label: world.name}, {label: 'Relationship types'}]}>
+      <ItemGrid title="Relationship types" nameLabel="Name" columns={[{label: 'From', width: 'minmax(0, 1fr)'}, {label: 'To', width: 'minmax(0, 1fr)'}, {label: 'Description', width: 'minmax(0, 2fr)'}, {label: 'Used', width: '3.5rem'}]} query={query} onQuery={setQuery} searchLabel="Search relationship types" storageKey="view-relationship-types" canEdit={canEdit} newLabel="New relationship type" adding={adding} onNew={() => setAdding(true)} addForm={addForm} empty={shown.length === 0} emptyText="No relationship types yet">
+        {shown.map((type) => <RelationshipTypeCell key={type.id} worldId={id} type={type} entryTypes={entryTypes} canEdit={canEdit} onChanged={reload}/>)}
       </ItemGrid>
     </Page>
   );

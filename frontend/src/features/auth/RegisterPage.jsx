@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Page from '../../components/Page';
+import ThemePicker from '../../components/ThemePicker';
 import { useAuth } from '../../context/AuthContext';
 
 export default function RegisterPage() {
@@ -31,9 +32,13 @@ export default function RegisterPage() {
 
   return (
     <Page size="narrow">
-      <div className="panel">
-        <h1 className="title">Register</h1>
+      <div className="auth-top">
+        <ThemePicker/>
+      </div>
 
+      <h1 className="title page-title">Register</h1>
+
+      <section className="card">
         <form onSubmit={handleSubmit}>
           <div>
             <label htmlFor="email">Email</label>
@@ -57,8 +62,8 @@ export default function RegisterPage() {
           </div>
         </form>
 
-        <p>Already have an account? <Link to="/login" state={location.state}>Log in</Link></p>
-      </div>
+        <p className="muted">Already have an account? <Link to="/login" state={location.state}>Log in</Link></p>
+      </section>
     </Page>
   );
 }

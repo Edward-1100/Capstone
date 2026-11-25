@@ -66,7 +66,7 @@ function parseRelations(value: unknown, name: string) {
   const message = `${name} must look like typeId:from or to:entryId`;
   const items = parseList(value, name, message);
   const parsed = items.map((item) => item.split(':'));
-  const valid = parsed.every((parts) => parts.length === 3 && isUUID(parts[0]) && (parts[1] === 'from' || parts[1] === 'to') && isUUID(parts[2]));
+  const valid = parsed.every((parts) => parts.length === 3 && isUUID(parts[0]) && (parts[1] === 'from' || parts[1] === 'to' || parts[1] === 'either') && isUUID(parts[2]));
 
   if (!valid) {
     throw new BadRequestException(message);
@@ -212,14 +212,14 @@ export class EntriesService {
            WHERE NOT EXISTS (
              SELECT 1 FROM relationships r
              WHERE r.relationship_type_id = f.type_id
-               AND ((f.side = 'to' AND r.to_entry_id = f.other_id AND r.from_entry_id = e.id) OR (f.side = 'from' AND r.from_entry_id = f.other_id AND r.to_entry_id = e.id))
+               AND ((f.side = 'to' AND r.to_entry_id = f.other_id AND r.from_entry_id = e.id) OR (f.side = 'from' AND r.from_entry_id = f.other_id AND r.to_entry_id = e.id) OR (f.side = 'either' AND ((r.to_entry_id = f.other_id AND r.from_entry_id = e.id) OR (r.from_entry_id = f.other_id AND r.to_entry_id = e.id))))
            ))
          AND NOT EXISTS (
            SELECT 1 FROM unnest($15::uuid[], $16::text[], $17::uuid[]) AS f(type_id, side, other_id)
            WHERE EXISTS (
              SELECT 1 FROM relationships r
              WHERE r.relationship_type_id = f.type_id
-               AND ((f.side = 'to' AND r.to_entry_id = f.other_id AND r.from_entry_id = e.id) OR (f.side = 'from' AND r.from_entry_id = f.other_id AND r.to_entry_id = e.id))
+               AND ((f.side = 'to' AND r.to_entry_id = f.other_id AND r.from_entry_id = e.id) OR (f.side = 'from' AND r.from_entry_id = f.other_id AND r.to_entry_id = e.id) OR (f.side = 'either' AND ((r.to_entry_id = f.other_id AND r.from_entry_id = e.id) OR (r.from_entry_id = f.other_id AND r.to_entry_id = e.id))))
            ))
        ORDER BY lower(e.name)`,
       [worldId, search, types.ids, types.none, excludedTypes.ids, excludedTypes.none, included, excluded, query.tagMode ?? 'all', inside, outside, related.types, related.sides, related.entries, unrelated.types, unrelated.sides, unrelated.entries],

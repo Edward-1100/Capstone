@@ -1,5 +1,5 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { TagRulesService } from './tag-rules.service';
+import { checkDetail, TagRulesService } from './tag-rules.service';
 
 function createService() {
   const client = {query: jest.fn()};
@@ -12,6 +12,15 @@ const TAG = '11111111-1111-4111-8111-111111111111';
 const TYPE = '22222222-2222-4222-8222-222222222222';
 const ENTRY = '33333333-3333-4333-8333-333333333333';
 const REL = '44444444-4444-4444-8444-444444444444';
+const FIELD = '55555555-5555-4555-8555-555555555555';
+
+function detail(fieldType: string, op: string, value: any, config: any = {}) {
+  const condition: any = {exclude: false, kind: 'detail', fieldId: FIELD, op, value};
+
+  checkDetail(condition, {fieldType, config});
+
+  return condition;
+}
 
 function sqlOf(client: any) {
   return client.query.mock.calls.map((call: any) => call[0]);
@@ -59,7 +68,7 @@ describe('TagRulesService', () => {
     it('rejects a condition with an unknown kind', async () => {
       const {service} = createService();
 
-      await expect(service.save('w1', TAG, {conditions: [{kind: 'colour'}]})).rejects.toThrow('kind must be type, relationship or inside');
+      await expect(service.save('w1', TAG, {conditions: [{kind: 'colour'}]})).rejects.toThrow('kind must be type, relationship, inside or detail');
       await expect(service.save('w1', TAG, {conditions: [null]})).rejects.toThrow(BadRequestException);
     });
 
@@ -160,5 +169,61 @@ describe('TagRulesService', () => {
       expect(await service.clearEntry('w1', TAG, ENTRY)).toEqual({deleted: true});
       expect(db.query.mock.calls[1][1]).toEqual([TAG, ENTRY, 'w1']);
     });
+  });
+});
+
+describe('detail conditions', () => {
+  const options = {options: [{id: 'a', label: 'A'}, {id: 'b', label: 'B'}]};
+
+  it('needs a field and a way to compare', async () => {
+    const {service} = createService();
+
+    await expect(service.save('w1', TAG, {conditions: [{kind: 'detail'}]})).rejects.toThrow('Choose a field');
+    await expect(service.save('w1', TAG, {conditions: [{kind: 'detail', fieldId: FIELD}]})).rejects.toThrow('Choose how to compare');
+  });
+
+  it('accepts number comparisons', () => {
+    expect(detail('number', 'gte', 3).value).toBe(3);
+    expect(detail('scale', 'between', [1, 4]).value).toEqual([1, 4]);
+    expect(() => detail('number', 'gte', 'x')).toThrow('Enter a number');
+    expect(() => detail('number', 'between', [5, 1])).toThrow('must not be above');
+    expect(() => detail('number', 'between', [1])).toThrow('Enter two numbers');
+    expect(() => detail('number', 'is', 1)).toThrow('Choose how to compare the number');
+  });
+
+  it('accepts true or false for a boolean', () => {
+    expect(detail('boolean', 'is', false).value).toBe(false);
+    expect(() => detail('boolean', 'is', 'yes')).toThrow('Choose true or false');
+    expect(() => detail('boolean', 'eq', true)).toThrow('Choose true or false');
+  });
+
+  it('checks options against the field and removes duplicates', () => {
+    expect(detail('choice', 'any', ['a', 'a'], options).value).toEqual(['a']);
+    expect(detail('multi_choice', 'all', ['a', 'b'], options).op).toBe('all');
+    expect(() => detail('choice', 'all', ['a'], options)).toThrow('Choose how to compare the options');
+    expect(() => detail('multi_choice', 'any', ['z'], options)).toThrow('Choose options from that field');
+    expect(() => detail('multi_choice', 'any', [], options)).toThrow('Choose options from that field');
+  });
+
+  it('does not allow text fields', () => {
+    expect(() => detail('text', 'eq', 'x')).toThrow('Choose a field that can be compared');
+  });
+
+  it('rejects fields from another world and saves the details as JSON', async () => {
+    const {service, client, db} = createService();
+
+    client.query.mockResolvedValueOnce({rows: [{id: TAG}]}).mockResolvedValueOnce({rows: []});
+
+    await expect(service.save('w1', TAG, {conditions: [{kind: 'detail', fieldId: FIELD, op: 'gte', value: 2}]})).rejects.toThrow('Choose fields from this world');
+
+    client.query.mockReset();
+    client.query.mockResolvedValueOnce({rows: [{id: TAG}]}).mockResolvedValueOnce({rows: [{id: FIELD, fieldType: 'number', config: {}}]}).mockResolvedValue({rows: []});
+    db.query.mockResolvedValueOnce({rows: [{match: 'all'}]}).mockResolvedValueOnce({rows: []});
+
+    await service.save('w1', TAG, {conditions: [{kind: 'detail', fieldId: FIELD, op: 'gte', value: 2}]});
+
+    const insert = client.query.mock.calls.find((call: any) => call[0].includes('INSERT INTO tag_rule_conditions'));
+
+    expect(insert[1].slice(4)).toEqual(['detail', null, null, null, true, null, null, FIELD, 'gte', '2']);
   });
 });

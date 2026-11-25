@@ -4,6 +4,7 @@ import { listEntriesRequest } from '../api/entries';
 import { createRelationshipRequest, deleteRelationshipRequest, listEntryRelationshipsRequest } from '../api/relationships';
 import { listRelationshipTypesRequest } from '../api/relationshipTypes';
 import { allows } from '../utils/relationships';
+import SinglePick from './SinglePick';
 
 export default function EntryRelationships({worldId, entryId, entryName, entryTypeId, canEdit}) {
   const [relationships, setRelationships] = useState(null);
@@ -99,17 +100,11 @@ export default function EntryRelationships({worldId, entryId, entryName, entryTy
   const selfCell = <strong className="self">{entryName}</strong>;
 
   const typeSelect = (
-    <select aria-label="Relationship type" value={typeId} onChange={(e) => handleTypeChange(e.target.value)}>
-      <option value="">Choose a type</option>
-      {types.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-    </select>
+    <SinglePick options={types.map((item) => ({id: item.id, label: item.name}))} value={typeId} onChange={handleTypeChange} placeholder="Search for a type" label="Relationship type"/>
   );
 
   const otherSelect = (
-    <select aria-label="Other entry" value={otherId} disabled={!type} onChange={(e) => setOtherId(e.target.value)}>
-      <option value="">Choose an entry</option>
-      {candidates.map((other) => <option key={other.id} value={other.id}>{other.name} ({other.typeName || 'no type'})</option>)}
-    </select>
+    type ? <SinglePick options={candidates.map((other) => ({id: other.id, label: `${other.name} (${other.typeName || 'no type'})`, count: other.relationshipCount}))} value={otherId} onChange={setOtherId} placeholder="Search for an entry" label="Other entry"/> : <span className="muted">Pick a type first</span>
   );
 
   return (
