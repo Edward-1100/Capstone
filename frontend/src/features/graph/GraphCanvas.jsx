@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { inkColor } from '../../utils/theme';
 import { buildGroups, colorMap, createLayout, nodeColor, placeLabel, stepLayout, visibleGraph } from '../../utils/graph';
 
 const MIN_ZOOM = 0.1;
@@ -56,7 +57,7 @@ export default function GraphCanvas({data, settings, selectedId, matchIds, inset
 
     if (cfg.groupLabels) {
       ctx.textAlign = 'center';
-      ctx.fillStyle = 'rgba(255,255,255,0.16)';
+      ctx.fillStyle = inkColor(0.16);
       ctx.font = `${16 / k}px sans-serif`;
 
       const placed = [];
@@ -80,7 +81,7 @@ export default function GraphCanvas({data, settings, selectedId, matchIds, inset
     for (const link of s.layout.links) {
       const lit = focus && (link.a.id === focus || link.b.id === focus);
 
-      ctx.strokeStyle = lit ? 'rgba(255,255,255,0.8)' : focus ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.22)';
+      ctx.strokeStyle = lit ? inkColor(0.8) : focus ? inkColor(0.05) : inkColor(0.22);
       ctx.beginPath();
       ctx.moveTo(link.a.x, link.a.y);
       ctx.lineTo(link.b.x, link.b.y);
@@ -100,14 +101,14 @@ export default function GraphCanvas({data, settings, selectedId, matchIds, inset
 
       if (node.id === selected || (searching && matches.has(node.id))) {
         ctx.lineWidth = 2 / k;
-        ctx.strokeStyle = '#ffffff';
+        ctx.strokeStyle = inkColor(1);
         ctx.stroke();
       }
     }
 
     ctx.globalAlpha = 1;
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#f2f2f2';
+    ctx.fillStyle = inkColor(1);
     ctx.font = `${12 / k}px sans-serif`;
 
     for (const node of s.layout.nodes) {

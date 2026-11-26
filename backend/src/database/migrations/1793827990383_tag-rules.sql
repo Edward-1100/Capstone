@@ -7,13 +7,16 @@ CREATE TABLE tag_rule_conditions (
   tag_id UUID NOT NULL,
   position INTEGER NOT NULL DEFAULT 0,
   exclude BOOLEAN NOT NULL DEFAULT false,
-  kind TEXT NOT NULL CHECK (kind IN ('type', 'relationship', 'inside')),
+  kind TEXT NOT NULL CHECK (kind IN ('type', 'relationship', 'inside', 'detail')),
   entry_type_id UUID,
   relationship_type_id UUID,
   side TEXT CHECK (side IN ('from', 'to', 'either')),
   other_any BOOLEAN NOT NULL DEFAULT true,
   other_entry_id UUID,
   inside_entry_id UUID,
+  field_id UUID REFERENCES type_fields (id) ON DELETE SET NULL (field_id),
+  op TEXT CHECK (op IN ('eq', 'gte', 'lte', 'between', 'is', 'any', 'all')),
+  value JSONB,
   FOREIGN KEY (tag_id, world_id) REFERENCES tags (id, world_id) ON DELETE CASCADE,
   FOREIGN KEY (entry_type_id, world_id) REFERENCES entry_types (id, world_id) ON DELETE SET NULL (entry_type_id),
   FOREIGN KEY (relationship_type_id, world_id) REFERENCES relationship_types (id, world_id) ON DELETE SET NULL (relationship_type_id),
@@ -59,6 +62,23 @@ CREATE FUNCTION tag_condition_matches(c tag_rule_conditions, p_entry UUID, p_typ
         )
     )
     WHEN 'inside' THEN EXISTS (SELECT 1 FROM entry_ancestors(p_entry) AS a(id) WHERE a.id = c.inside_entry_id)
+    WHEN 'detail' THEN COALESCE((
+      SELECT CASE
+        WHEN c.field_id IS NULL OR v.v IS NULL THEN false
+        WHEN c.op = 'eq' THEN CASE WHEN jsonb_typeof(v.v) = 'number' THEN (v.v #>> '{}')::numeric = (c.value #>> '{}')::numeric ELSE false END
+        WHEN c.op = 'gte' THEN CASE WHEN jsonb_typeof(v.v) = 'number' THEN (v.v #>> '{}')::numeric >= (c.value #>> '{}')::numeric ELSE false END
+        WHEN c.op = 'lte' THEN CASE WHEN jsonb_typeof(v.v) = 'number' THEN (v.v #>> '{}')::numeric <= (c.value #>> '{}')::numeric ELSE false END
+        WHEN c.op = 'between' THEN CASE WHEN jsonb_typeof(v.v) = 'number' THEN (v.v #>> '{}')::numeric BETWEEN (c.value ->> 0)::numeric AND (c.value ->> 1)::numeric ELSE false END
+        WHEN c.op = 'is' THEN v.v = c.value
+        WHEN c.op = 'any' AND c.value IS NOT NULL THEN CASE
+          WHEN jsonb_typeof(v.v) = 'string' THEN c.value ? (v.v #>> '{}')
+          WHEN jsonb_typeof(v.v) = 'array' THEN v.v ?| ARRAY(SELECT jsonb_array_elements_text(c.value))
+          ELSE false END
+        WHEN c.op = 'all' THEN CASE WHEN jsonb_typeof(v.v) = 'array' THEN v.v @> c.value ELSE false END
+        ELSE false
+      END
+      FROM (SELECT e.fields -> c.field_id::text AS v FROM entries e WHERE e.id = p_entry) v
+    ), false)
     ELSE false
   END
 $$;
@@ -69,6 +89,11 @@ CREATE FUNCTION tag_condition_broken(c tag_rule_conditions) RETURNS BOOLEAN LANG
     WHEN 'relationship' THEN c.relationship_type_id IS NULL
       OR (NOT c.other_any AND NOT EXISTS (SELECT 1 FROM active_entries o WHERE o.id = c.other_entry_id))
     WHEN 'inside' THEN NOT EXISTS (SELECT 1 FROM active_entries o WHERE o.id = c.inside_entry_id)
+    WHEN 'detail' THEN c.field_id IS NULL
+      OR (c.op = 'any' AND NOT EXISTS (
+        SELECT 1 FROM type_fields f, jsonb_array_elements(f.config -> 'options') o WHERE f.id = c.field_id AND c.value ? (o ->> 'id')))
+      OR (c.op = 'all' AND (
+        SELECT count(*) FROM type_fields f, jsonb_array_elements(f.config -> 'options') o WHERE f.id = c.field_id AND c.value ? (o ->> 'id')) < jsonb_array_length(c.value))
     ELSE true
   END
 $$;

@@ -5,8 +5,69 @@ import { listEntryTypesRequest } from '../api/entryTypes';
 import { listRelationshipTypesRequest } from '../api/relationshipTypes';
 import { clearTagRuleEntryRequest, getTagRuleRequest, previewTagRuleRequest, saveTagRuleRequest, setTagRuleEntryRequest } from '../api/tags';
 import { countLabel } from '../utils/text';
+import { OPS, fieldList } from '../utils/tagRules';
+import Typeahead from './Typeahead';
+import SinglePick from './SinglePick';
 
-const EMPTY_CONDITION = {exclude: false, kind: 'type', entryTypeId: '', relationshipTypeId: '', side: 'either', otherAny: true, otherEntryId: '', insideEntryId: ''};
+const EMPTY_CONDITION = {exclude: false, kind: 'type', entryTypeId: '', relationshipTypeId: '', side: 'either', otherAny: true, otherEntryId: '', insideEntryId: '', fieldId: '', pickType: '', op: '', value: []};
+
+function draftValue(condition) {
+  if (condition.op === 'between') {
+    return (condition.value || []).map(String);
+  }
+
+  if (condition.op === 'any' || condition.op === 'all') {
+    return condition.value || [];
+  }
+
+  if (condition.op === 'is') {
+    return [String(condition.value)];
+  }
+
+  return condition.value === null || condition.value === undefined ? [''] : [String(condition.value)];
+}
+
+function detailValue(condition) {
+  const list = condition.value;
+
+  if (condition.op === 'between') {
+    return [Number(list[0]), Number(list[1])];
+  }
+
+  if (condition.op === 'any' || condition.op === 'all') {
+    return list;
+  }
+
+  if (condition.op === 'is') {
+    return list[0] === 'true';
+  }
+
+  return Number(list[0]);
+}
+
+function isComplete(condition, fields) {
+  if (condition.kind !== 'detail') {
+    return true;
+  }
+
+  const field = fields.find((item) => item.id === condition.fieldId);
+
+  if (!field || !condition.op) {
+    return false;
+  }
+
+  if (condition.op === 'any' || condition.op === 'all') {
+    return condition.value.length > 0;
+  }
+
+  if (condition.op === 'is') {
+    return condition.value[0] === 'true' || condition.value[0] === 'false';
+  }
+
+  const needed = condition.op === 'between' ? 2 : 1;
+
+  return condition.value.length >= needed && condition.value.slice(0, needed).every((item) => item !== '' && Number.isFinite(Number(item)));
+}
 
 function toDraft(condition) {
   return {
@@ -18,6 +79,9 @@ function toDraft(condition) {
     otherAny: condition.otherAny,
     otherEntryId: condition.otherEntryId || '',
     insideEntryId: condition.insideEntryId || '',
+    fieldId: condition.fieldId || '',
+    op: condition.op || '',
+    value: condition.kind === 'detail' && condition.op ? draftValue(condition) : [],
     broken: Boolean(condition.broken),
   };
 }
@@ -32,10 +96,16 @@ function toPayload(condition) {
     otherAny: condition.otherAny,
     otherEntryId: condition.otherEntryId,
     insideEntryId: condition.insideEntryId,
+    fieldId: condition.fieldId,
+    op: condition.op,
+    value: condition.kind === 'detail' ? detailValue(condition) : null,
   };
 }
 
-export default function TagRules({worldId, tag, canEdit, focusEntryId, onChanged}) {
+const KINDS = [['type', 'Entry type'], ['relationship', 'Relationship'], ['inside', 'Inside entry'], ['detail', 'Field']];
+const SIDES = [['either', 'Either way'], ['from', 'From it'], ['to', 'To it']];
+
+export default function TagRules({worldId, tag, canEdit, focusEntryId, onChanged, draft = false, onDraft}) {
   const [rule, setRule] = useState(null);
   const [conditions, setConditions] = useState([]);
   const [match, setMatch] = useState('all');
@@ -45,11 +115,12 @@ export default function TagRules({worldId, tag, canEdit, focusEntryId, onChanged
   const [entries, setEntries] = useState([]);
   const [previewOpen, setPreviewOpen] = useState(Boolean(focusEntryId));
   const [preview, setPreview] = useState(null);
-  const [addId, setAddId] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
-    Promise.all([getTagRuleRequest(worldId, tag.id), listEntryTypesRequest(worldId), listRelationshipTypesRequest(worldId), listEntriesRequest(worldId)])
+    const loadRule = draft ? Promise.resolve({paused: false, match: 'all', conditions: []}) : getTagRuleRequest(worldId, tag.id);
+
+    Promise.all([loadRule, listEntryTypesRequest(worldId), listRelationshipTypesRequest(worldId), listEntriesRequest(worldId)])
       .then(([ruleData, typeData, relationshipTypeData, entryData]) => {
         setRule(ruleData);
         setConditions(ruleData.conditions.map(toDraft));
@@ -59,21 +130,48 @@ export default function TagRules({worldId, tag, canEdit, focusEntryId, onChanged
         setEntries(entryData);
       })
       .catch((err) => setError(err.message));
-  }, [worldId, tag.id]);
+  }, [worldId, tag.id, draft]);
 
   useEffect(() => {
-    if (!previewOpen) {
+    if (draft || !previewOpen) {
       return;
     }
 
     previewTagRuleRequest(worldId, tag.id)
       .then(setPreview)
       .catch((err) => setError(err.message));
-  }, [worldId, tag.id, previewOpen, rule]);
+  }, [worldId, tag.id, previewOpen, rule, draft]);
+
+  useEffect(() => {
+    if (draft && rule) {
+      const known = fieldList(entryTypes);
+
+      onDraft({match, conditions: conditions.map(toPayload), complete: conditions.every((item) => isComplete(item, known))});
+    }
+  }, [draft, rule, match, conditions, entryTypes, onDraft]);
 
   function updateCondition(index, changes) {
     setConditions(conditions.map((item, position) => (position === index ? Object.assign({}, item, changes) : item)));
     setDirty(true);
+  }
+
+  function changeField(index, fieldId) {
+    const field = fields.find((item) => item.id === fieldId);
+    const op = field ? OPS[field.fieldType][0][0] : '';
+
+    updateCondition(index, {fieldId, op, value: op === 'is' ? ['true'] : (op === 'between' ? ['', ''] : (op === 'any' || op === 'all' ? [] : ['']))});
+  }
+
+  function changeOp(index, op) {
+    const old = conditions[index].value;
+
+    updateCondition(index, {op, value: op === 'between' ? [old[0] || '', ''] : (op === 'any' || op === 'all' ? old.filter(Boolean) : [old[0] || ''])});
+  }
+
+  function toggleOption(index, optionId) {
+    const current = conditions[index].value;
+
+    updateCondition(index, {value: current.includes(optionId) ? current.filter((item) => item !== optionId) : current.concat([optionId])});
   }
 
   function changeKind(index, kind) {
@@ -116,7 +214,6 @@ export default function TagRules({worldId, tag, canEdit, focusEntryId, onChanged
 
     try {
       await action();
-      setAddId('');
       setPreview(await previewTagRuleRequest(worldId, tag.id));
       await onChanged();
     } catch (err) {
@@ -128,14 +225,25 @@ export default function TagRules({worldId, tag, canEdit, focusEntryId, onChanged
     return <p>{error || 'Loading'}</p>;
   }
 
+  const fields = fieldList(entryTypes);
+  const typeOptions = entryTypes.map((type) => ({id: type.id, label: type.name}));
+  const relationOptions = relationshipTypes.map((type) => ({id: type.id, label: type.name}));
+  const entryOptions = entries.map((entry) => ({id: entry.id, label: entry.name}));
+  const fieldTypeOptions = entryTypes.filter((type) => fields.some((field) => field.typeId === type.id)).map((type) => ({id: type.id, label: type.name}));
+
+  function fieldTypeOf(item) {
+    const found = fields.find((field) => field.id === item.fieldId);
+
+    return found ? found.typeId : (item.pickType || '');
+  }
+
+  const allComplete = conditions.every((item) => isComplete(item, fields));
   const includeCount = conditions.filter((item) => !item.exclude).length;
   const applied = preview ? preview.entries : [];
   const addable = entries.filter((entry) => !applied.some((item) => item.id === entry.id) && !(preview && preview.excluded.some((item) => item.id === entry.id)));
 
   return (
     <div className="rules">
-      <h3>Rule</h3>
-
       {rule.paused && <p role="alert">This rule is paused because something it refers to was deleted. Fix or remove the highlighted condition to turn it back on.</p>}
 
       {conditions.length === 0 && <p className="muted">No conditions yet</p>}
@@ -144,64 +252,64 @@ export default function TagRules({worldId, tag, canEdit, focusEntryId, onChanged
         {conditions.map((item, index) => (
           <li key={index} className={item.broken ? 'broken' : ''}>
             {canEdit && (
-              <div className="inline-form">
-                <select aria-label="Include or except" value={item.exclude ? 'except' : 'include'} onChange={(e) => updateCondition(index, {exclude: e.target.value === 'except'})}>
-                  <option value="include">Include if</option>
-                  <option value="except">Except if</option>
-                </select>
+              <div className="cond-edit">
+                <div className="cond-bar">
+                  <div className="toggle" role="group" aria-label="Include or except">
+                    <button type="button" className={item.exclude ? '' : 'on'} onClick={() => updateCondition(index, {exclude: false})}>Include if</button>
+                    <button type="button" className={item.exclude ? 'on' : ''} onClick={() => updateCondition(index, {exclude: true})}>Except if</button>
+                  </div>
 
-                <select aria-label="Condition" value={item.kind} onChange={(e) => changeKind(index, e.target.value)}>
-                  <option value="type">entry type is</option>
-                  <option value="relationship">it has the relationship</option>
-                  <option value="inside">it is inside</option>
-                </select>
+                  <div className="toggle" role="group" aria-label="Condition">
+                    {KINDS.map(([kind, text]) => <button key={kind} type="button" className={item.kind === kind ? 'on' : ''} onClick={() => changeKind(index, kind)}>{text}</button>)}
+                  </div>
 
-                {item.kind === 'type' && (
-                  <select aria-label="Entry type" value={item.entryTypeId} onChange={(e) => updateCondition(index, {entryTypeId: e.target.value})}>
-                    <option value="">Choose a type</option>
-                    {entryTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
-                  </select>
-                )}
+                  <button type="button" onClick={() => removeCondition(index)}>Remove</button>
+                </div>
 
-                {item.kind === 'relationship' && (
-                  <>
-                    <select aria-label="Relationship type" value={item.relationshipTypeId} onChange={(e) => updateCondition(index, {relationshipTypeId: e.target.value})}>
-                      <option value="">Choose a type</option>
-                      {relationshipTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
-                    </select>
+                <div className="cond-body">
+                  {item.kind === 'type' && <SinglePick options={typeOptions} value={item.entryTypeId} onChange={(value) => updateCondition(index, {entryTypeId: value})} placeholder="Search for an entry type" label="entry type" missing="A deleted type"/>}
 
-                    <select aria-label="Direction" value={item.side} onChange={(e) => updateCondition(index, {side: e.target.value})}>
-                      <option value="either">in either direction</option>
-                      <option value="from">from it</option>
-                      <option value="to">to it</option>
-                    </select>
+                  {item.kind === 'relationship' && (
+                    <>
+                      <SinglePick options={relationOptions} value={item.relationshipTypeId} onChange={(value) => updateCondition(index, {relationshipTypeId: value})} placeholder="Search for a relationship type" label="relationship type" missing="A deleted type"/>
 
-                    <select aria-label="With" value={item.otherAny ? 'any' : 'one'} onChange={(e) => updateCondition(index, {otherAny: e.target.value === 'any', otherEntryId: ''})}>
-                      <option value="any">with any entry</option>
-                      <option value="one">with a specific entry</option>
-                    </select>
+                      <div className="toggle" role="group" aria-label="Direction">
+                        {SIDES.map(([side, text]) => <button key={side} type="button" className={item.side === side ? 'on' : ''} onClick={() => updateCondition(index, {side})}>{text}</button>)}
+                      </div>
 
-                    {!item.otherAny && (
-                      <select aria-label="Other entry" value={item.otherEntryId} onChange={(e) => updateCondition(index, {otherEntryId: e.target.value})}>
-                        <option value="">Choose an entry</option>
-                        {entries.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
-                      </select>
-                    )}
-                  </>
-                )}
+                      <div className="toggle" role="group" aria-label="With">
+                        <button type="button" className={item.otherAny ? 'on' : ''} onClick={() => updateCondition(index, {otherAny: true, otherEntryId: ''})}>Any entry</button>
+                        <button type="button" className={item.otherAny ? '' : 'on'} onClick={() => updateCondition(index, {otherAny: false})}>One entry</button>
+                      </div>
 
-                {item.kind === 'inside' && (
-                  <select aria-label="Parent entry" value={item.insideEntryId} onChange={(e) => updateCondition(index, {insideEntryId: e.target.value})}>
-                    <option value="">Choose an entry</option>
-                    {entries.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
-                  </select>
-                )}
+                      {!item.otherAny && <SinglePick options={entryOptions} value={item.otherEntryId} onChange={(value) => updateCondition(index, {otherEntryId: value})} placeholder="Search for an entry" label="other entry" missing="A deleted entry"/>}
+                    </>
+                  )}
 
-                <button type="button" onClick={() => removeCondition(index)}>Remove</button>
+                  {item.kind === 'inside' && <SinglePick options={entryOptions} value={item.insideEntryId} onChange={(value) => updateCondition(index, {insideEntryId: value})} placeholder="Search for an entry" label="parent entry" missing="A deleted entry"/>}
+
+                  {item.kind === 'detail' && (
+                    <>
+                      <SinglePick options={fieldTypeOptions} value={fieldTypeOf(item)} onChange={(value) => updateCondition(index, {pickType: value, fieldId: '', op: '', value: []})} placeholder="Search for an entry type" label="entry type of the field" missing="A deleted type"/>
+
+                      {fieldTypeOf(item) && <SinglePick options={fields.filter((field) => field.typeId === fieldTypeOf(item)).map((field) => ({id: field.id, label: field.name}))} value={fields.some((field) => field.id === item.fieldId) ? item.fieldId : ''} onChange={(value) => changeField(index, value)} placeholder="Search for a field" label="field" missing="A deleted field"/>}
+
+                      {item.fieldId && fields.some((field) => field.id === item.fieldId) && (
+                        <DetailInputs
+                          condition={item}
+                          field={fields.find((field) => field.id === item.fieldId)}
+                          onOp={(op) => changeOp(index, op)}
+                          onValue={(value) => updateCondition(index, {value})}
+                          onToggle={(optionId) => toggleOption(index, optionId)}
+                        />
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             )}
 
-            {!canEdit && <span>{item.exclude ? 'Except if ' : 'Include if '}{describe(item, entryTypes, relationshipTypes, entries)}</span>}
+            {!canEdit && <span>{item.exclude ? 'Except if ' : 'Include if '}{item.kind === 'detail' ? describeDetail(item, fields) : describe(item, entryTypes, relationshipTypes, entries)}</span>}
 
             {item.broken && <p className="muted">This points at something that was deleted. Choose another or remove it.</p>}
           </li>
@@ -224,17 +332,17 @@ export default function TagRules({worldId, tag, canEdit, focusEntryId, onChanged
       {canEdit && (
         <div className="cell-actions">
           <button type="button" onClick={addCondition} disabled={conditions.length >= 20}>Add condition</button>
-          <button type="button" onClick={handleSave} disabled={!dirty}>Save rule</button>
+          {!draft && <button type="button" onClick={handleSave} disabled={!dirty || !allComplete}>Save rule</button>}
         </div>
       )}
 
       {error && <p role="alert">{error}</p>}
 
-      <div className="preview-toggle">
+      {!draft && <div className="preview-toggle">
         <button type="button" aria-expanded={previewOpen} onClick={() => setPreviewOpen(!previewOpen)}>
           {previewOpen ? 'Hide entries' : 'Show entries this applies to'}
         </button>
-      </div>
+      </div>}
 
       {previewOpen && !preview && <p>Loading</p>}
 
@@ -278,19 +386,84 @@ export default function TagRules({worldId, tag, canEdit, focusEntryId, onChanged
           )}
 
           {canEdit && addable.length > 0 && (
-            <div className="inline-form">
-              <select aria-label="Add an entry" value={addId} onChange={(e) => setAddId(e.target.value)}>
-                <option value="">Add an entry</option>
-                {addable.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
-              </select>
-
-              <button type="button" disabled={!addId} onClick={() => changeEntry(() => setTagRuleEntryRequest(worldId, tag.id, addId, false))}>Add</button>
+            <div className="pick-box">
+              <Typeahead options={addable.map((entry) => ({id: entry.id, label: entry.name, count: entry.relationshipCount}))} onPick={(entryId) => changeEntry(() => setTagRuleEntryRequest(worldId, tag.id, entryId, false))} placeholder="Search to add an entry by hand" label="Add an entry"/>
             </div>
           )}
         </div>
       )}
     </div>
   );
+}
+
+function DetailInputs({condition, field, onOp, onValue, onToggle}) {
+  const ops = OPS[field.fieldType];
+  const options = (field.config && field.config.options) || [];
+  const value = condition.value;
+
+  return (
+    <>
+      {ops.length > 1 && (
+        <div className="toggle" role="group" aria-label="Comparison">
+          {ops.map(([key, label]) => <button key={key} type="button" className={condition.op === key ? 'on' : ''} onClick={() => onOp(key)}>{label}</button>)}
+        </div>
+      )}
+
+      {(condition.op === 'eq' || condition.op === 'gte' || condition.op === 'lte') && (
+        <input type="number" aria-label="Value" step="any" min={field.fieldType === 'scale' ? field.config.min : undefined} max={field.fieldType === 'scale' ? field.config.max : undefined} placeholder={field.fieldType === 'scale' ? `${field.config.min} to ${field.config.max}` : undefined} value={value[0] ?? ''} onChange={(e) => onValue([e.target.value])}/>
+      )}
+
+      {condition.op === 'between' && (
+        <>
+          <input type="number" aria-label="From" value={value[0] ?? ''} onChange={(e) => onValue([e.target.value, value[1] ?? ''])}/>
+          <span>and</span>
+          <input type="number" aria-label="To" value={value[1] ?? ''} onChange={(e) => onValue([value[0] ?? '', e.target.value])}/>
+        </>
+      )}
+
+      {condition.op === 'is' && (
+        <div className="toggle" role="group" aria-label="Value">
+          <button type="button" className={value[0] === 'true' ? 'on' : ''} onClick={() => onValue(['true'])}>{(field.config && field.config.trueLabel) || 'True'}</button>
+          <button type="button" className={value[0] === 'false' ? 'on' : ''} onClick={() => onValue(['false'])}>{(field.config && field.config.falseLabel) || 'False'}</button>
+        </div>
+      )}
+
+      {(condition.op === 'any' || condition.op === 'all') && (
+        <span className="multi-options">
+          {options.map((option) => (
+            <label key={option.id} className={value.includes(option.id) ? 'multi-option selected' : 'multi-option'}>
+              <input type="checkbox" checked={value.includes(option.id)} onChange={() => onToggle(option.id)}/>
+              {option.label}
+            </label>
+          ))}
+        </span>
+      )}
+    </>
+  );
+}
+
+function describeDetail(item, fields) {
+  const field = fields.find((entry) => entry.id === item.fieldId);
+
+  if (!field) {
+    return 'a field that was deleted';
+  }
+
+  const options = (field.config && field.config.options) || [];
+  const label = (OPS[field.fieldType].find(([key]) => key === item.op) || ['', item.op])[1];
+  let shown;
+
+  if (item.op === 'any' || item.op === 'all') {
+    shown = item.value.map((id) => (options.find((option) => option.id === id) || {label: 'a deleted option'}).label).join(', ');
+  } else if (item.op === 'between') {
+    shown = `${item.value[0]} and ${item.value[1]}`;
+  } else if (item.op === 'is') {
+    shown = item.value[0] === 'true' ? ((field.config && field.config.trueLabel) || 'true') : ((field.config && field.config.falseLabel) || 'false');
+  } else {
+    shown = item.value[0];
+  }
+
+  return `${field.typeName}: ${field.name} ${label} ${shown}`;
 }
 
 function nameOf(list, id, fallback) {

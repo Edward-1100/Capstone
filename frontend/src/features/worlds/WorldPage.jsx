@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { getDashboardRequest, getWorldRequest } from '../../api/worlds';
 import Page from '../../components/Page';
+import ThemePicker from '../../components/ThemePicker';
 import { useAuth } from '../../context/AuthContext';
 import HighlightsWidget from './dashboard/HighlightsWidget';
 import SuggestionsInbox from './dashboard/SuggestionsInbox';
@@ -84,7 +85,7 @@ export default function WorldPage() {
   const attention = dashboard.untyped.length + dashboard.missingRequired.length + dashboard.outOfRange.length + dashboard.invalidRelationships.length + dashboard.pausedRules.length;
 
   return (
-    <Page crumbs={user ? [{to: '/', label: 'Your worlds'}, {label: world.name}] : []}>
+    <Page crumbs={user ? [{to: '/', label: 'Your worlds'}, {label: world.name}] : []} actions={<ThemePicker/>}>
       <div className="panel header">
         {world.thumbnailUrl && <img className="cover" src={world.thumbnailUrl} alt=""/>}
 
@@ -115,9 +116,9 @@ export default function WorldPage() {
         <Link to={`/worlds/${world.id}/tags`}>Tags</Link>
         <Link to={`/worlds/${world.id}/maps`}>Maps</Link>
         <Link to={`/worlds/${world.id}/graph`}>Graph</Link>
+        <Link to={`/worlds/${world.id}/timeline`}>Timeline</Link>
         {world.role === 'owner' && <Link to={`/worlds/${world.id}/edit`}>World settings</Link>}
         {!user && <Link to="/login">Log in</Link>}
-        <span className="muted">Timeline: coming soon</span>
       </nav>
 
       <div className="panel dashboard">

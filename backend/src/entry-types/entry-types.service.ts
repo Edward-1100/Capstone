@@ -5,8 +5,9 @@ import { DeleteEntryTypeDto } from './dto/delete-entry-type.dto';
 import { EntryTypeDto } from './dto/entry-type.dto';
 import { MappableDto } from './dto/mappable.dto';
 import { NestingDto } from './dto/nesting.dto';
+import { TimelineableDto } from './dto/timelineable.dto';
 
-const TYPE_COLUMNS = 'id, name, nest_mode AS "nestMode", mappable, created_at AS "createdAt"';
+const TYPE_COLUMNS = 'id, name, nest_mode AS "nestMode", mappable, timelineable, created_at AS "createdAt"';
 
 @Injectable()
 export class EntryTypesService {
@@ -14,7 +15,7 @@ export class EntryTypesService {
 
   async list(worldId: string) {
     const result = await this.db.query(
-      `SELECT t.id, t.name, t.nest_mode AS "nestMode", t.mappable, t.created_at AS "createdAt",
+      `SELECT t.id, t.name, t.nest_mode AS "nestMode", t.mappable, t.timelineable, t.created_at AS "createdAt",
               (SELECT count(*)::int FROM active_entries e WHERE e.type_id = t.id) AS "entryCount"
        FROM entry_types t
        WHERE t.world_id = $1
@@ -128,6 +129,19 @@ export class EntryTypesService {
     const result = await this.db.query(
       `UPDATE entry_types SET mappable = $3, updated_at = now() WHERE id = $1 AND world_id = $2 RETURNING ${TYPE_COLUMNS}`,
       [typeId, worldId, dto.mappable],
+    );
+
+    if (!result.rows[0]) {
+      throw new NotFoundException('Entry type not found');
+    }
+
+    return result.rows[0];
+  }
+
+  async setTimelineable(worldId: string, typeId: string, dto: TimelineableDto) {
+    const result = await this.db.query(
+      `UPDATE entry_types SET timelineable = $3, updated_at = now() WHERE id = $1 AND world_id = $2 RETURNING ${TYPE_COLUMNS}`,
+      [typeId, worldId, dto.timelineable],
     );
 
     if (!result.rows[0]) {

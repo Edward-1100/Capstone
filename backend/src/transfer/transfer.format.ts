@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { datesProblem, normalizeDates, TimelineDates } from '../timeline/timeline-dates';
 
 export const FORMAT_NAME = 'worldbuilder-export';
 export const FORMAT_VERSION = 1;
@@ -39,6 +40,7 @@ export interface TransferType {
   name: string;
   nestMode: string;
   mappable: boolean;
+  timelineable: boolean;
   fields: TransferField[];
   parents: string[];
 }
@@ -62,6 +64,9 @@ export interface TransferCondition {
   otherAny: boolean;
   otherEntryRef: string | null;
   insideEntryRef: string | null;
+  fieldRef: string | null;
+  op: string | null;
+  value: any;
 }
 
 export interface TransferTag {
@@ -90,6 +95,7 @@ export interface TransferEntry {
   images: {position: number; data: string | null}[];
   comments: TransferNote[];
   notes: TransferNote[];
+  timeline: (TimelineDates & {color: string | null}) | null;
 }
 
 export interface TransferRelationship {
@@ -273,7 +279,7 @@ function parseType(value: any): TransferType {
   uniqueRefs(fields, `${name} fields`);
 
   //return {ref: ref(input.ref, 'An entry type id'), name, nestMode, mappable: flag(input.mappable, false), fields, parents: refList(input.parents, `${name} parents`, LIMITS.entryTypes)};
-  return {ref: ref(input.ref, 'An entry type id'), name, nestMode, mappable: flag(input.mappable, false), fields, parents: refList(input.parents, `${name} parents`)};
+  return {ref: ref(input.ref, 'An entry type id'), name, nestMode, mappable: flag(input.mappable, false), timelineable: flag(input.timelineable, false), fields, parents: refList(input.parents, `${name} parents`)};
 }
 
 function parseRelationshipType(value: any): TransferRelationshipType {
@@ -292,12 +298,24 @@ function parseRelationshipType(value: any): TransferRelationshipType {
   };
 }
 
+function conditionValue(value: any) {
+  if (typeof value === 'boolean' || (typeof value === 'number' && Number.isFinite(value))) {
+    return value;
+  }
+
+  if (Array.isArray(value) && value.length <= 100 && value.every((item) => (typeof item === 'string' && item.length <= 200) || (typeof item === 'number' && Number.isFinite(item)))) {
+    return value;
+  }
+
+  return null;
+}
+
 function parseTag(value: any): TransferTag {
   const input = object(value, 'A tag');
   const name = text(input.name, 'A tag name', 50);
   const conditions = array(input.conditions, `${name} conditions`, LIMITS.conditions).map((item: any) => {
     const condition = object(item, `A condition of ${name}`);
-    const kind = ['type', 'relationship', 'inside'].includes(condition.kind) ? condition.kind : fail(`A condition of ${name} has an unknown kind`);
+    const kind = ['type', 'relationship', 'inside', 'detail'].includes(condition.kind) ? condition.kind : fail(`A condition of ${name} has an unknown kind`);
     const side = ['from', 'to', 'either'].includes(condition.side) ? condition.side : null;
 
     return {
@@ -309,6 +327,9 @@ function parseTag(value: any): TransferTag {
       otherAny: flag(condition.otherAny, true),
       otherEntryRef: optionalRef(condition.otherEntryRef, 'A condition entry'),
       insideEntryRef: optionalRef(condition.insideEntryRef, 'A condition entry'),
+      fieldRef: optionalRef(condition.fieldRef, 'A condition field'),
+      op: typeof condition.op === 'string' ? condition.op.slice(0, 20) : null,
+      value: conditionValue(condition.value),
     };
   });
 
@@ -327,6 +348,22 @@ function parseTag(value: any): TransferTag {
     conditions,
     ruleEntries,
   };
+}
+
+function parseTimeline(value: any, name: string) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  const input = object(value, `${name} timeline`);
+  const dates = normalizeDates(input);
+  const problem = datesProblem(dates);
+
+  if (problem) {
+    fail(`${name} timeline: ${problem}`);
+  }
+
+  return Object.assign({}, dates, {color: typeof input.color === 'string' && COLOR.test(input.color) ? input.color.toLowerCase() : null});
 }
 
 function parseEntry(value: any): TransferEntry {
@@ -357,6 +394,7 @@ function parseEntry(value: any): TransferEntry {
     images,
     comments: parseNotes(input.comments, `${name} comments`),
     notes: parseNotes(input.notes, `${name} notes`),
+    timeline: parseTimeline(input.timeline, name),
   };
 }
 

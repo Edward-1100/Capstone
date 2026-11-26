@@ -7,6 +7,7 @@ import { DeleteEntryTypeDto } from './dto/delete-entry-type.dto';
 import { EntryTypeDto } from './dto/entry-type.dto';
 import { MappableDto } from './dto/mappable.dto';
 import { NestingDto } from './dto/nesting.dto';
+import { TimelineableDto } from './dto/timelineable.dto';
 import { EntryTypesService } from './entry-types.service';
 
 @Controller('worlds/:id/entry-types')
@@ -45,6 +46,13 @@ export class EntryTypesController {
   @UseGuards(JwtAuthGuard, WorldRoleGuard)
   setMappable(@Param('id') id: string, @Param('typeId', ParseUUIDPipe) typeId: string, @Body() dto: MappableDto) {
     return this.types.setMappable(id, typeId, dto);
+  }
+
+  @Put(':typeId/timelineable')
+  @WorldRole('editor')
+  @UseGuards(JwtAuthGuard, WorldRoleGuard)
+  setTimelineable(@Param('id') id: string, @Param('typeId', ParseUUIDPipe) typeId: string, @Body() dto: TimelineableDto) {
+    return this.types.setTimelineable(id, typeId, dto);
   }
 
   @Delete(':typeId')

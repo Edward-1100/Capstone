@@ -217,6 +217,36 @@ describe('EntryTypesService', () => {
     });
   });
 
+  describe('setTimelineable', () => {
+    it('turns the timeline setting on', async () => {
+      const {service, db} = createService();
+
+      db.query.mockResolvedValueOnce({rows: [{id: 't1', timelineable: true}]});
+
+      expect(await service.setTimelineable('w1', 't1', {timelineable: true})).toEqual({id: 't1', timelineable: true});
+      expect(db.query.mock.calls[0][1]).toEqual(['t1', 'w1', true]);
+    });
+
+    it('turns the timeline setting off without touching any entries', async () => {
+      const {service, db} = createService();
+
+      db.query.mockResolvedValueOnce({rows: [{id: 't1', timelineable: false}]});
+
+      await service.setTimelineable('w1', 't1', {timelineable: false});
+
+      expect(db.query).toHaveBeenCalledTimes(1);
+      expect(db.query.mock.calls[0][0]).toContain('UPDATE entry_types');
+    });
+
+    it('returns not found for a type in another world', async () => {
+      const {service, db} = createService();
+
+      db.query.mockResolvedValueOnce({rows: []});
+
+      await expect(service.setTimelineable('w1', 't1', {timelineable: true})).rejects.toThrow(new NotFoundException('Entry type not found'));
+    });
+  });
+
   describe('remove', () => {
     it('returns not found for a missing type', async () => {
       const {service, client} = createService();

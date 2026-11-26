@@ -10,6 +10,7 @@ import EntryConflict from './EntryConflict';
 import EntryComments from './EntryComments';
 import EntryGallery from './EntryGallery';
 import EntryNotes from './EntryNotes';
+import SinglePick from './SinglePick';
 import EntryPlace from './EntryPlace';
 import EntryRelationships from './EntryRelationships';
 import EntryTags from './EntryTags';
@@ -278,10 +279,7 @@ export default function EntryView({worldId, entryId, role, pageLink, sideNotes, 
 
         {editing === 'type' && (
           <form className="inline-form" onSubmit={handleSaveType}>
-            <select aria-label="Type" value={typeDraft} onChange={(e) => setTypeDraft(e.target.value)}>
-              <option value="">No type</option>
-              {types.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
-            </select>
+            <SinglePick options={types.map((type) => ({id: type.id, label: type.name}))} value={typeDraft} onChange={setTypeDraft} placeholder="No type, search to choose one" label="Type"/>
 
             <button type="submit">Save</button>
             <button type="button" onClick={cancelEdit}>Cancel</button>
@@ -290,7 +288,7 @@ export default function EntryView({worldId, entryId, role, pageLink, sideNotes, 
 
         {editors.length > 0 && <p className="editing-notice" role="status">{editorsLabel(editors)}</p>}
 
-        <EntryPlace worldId={worldId} entry={entry} types={types} canEdit={canEdit} editing={editing} onCancel={cancelEdit} onSave={(parentId) => save({parentId})}/>
+        <EntryPlace worldId={worldId} entry={entry} types={types} canEdit={canEdit} onSave={(parentId) => save({parentId})}/>
       </div>
 
       {conflict && <EntryConflict current={conflict.current} items={conflict.items} choices={conflict.choices} types={types} allEntries={allEntries} mineName={user ? user.username : 'You'} onChoose={handleChoose} onSave={handleResolve} onDiscard={handleDiscard}/>}
@@ -347,7 +345,7 @@ export default function EntryView({worldId, entryId, role, pageLink, sideNotes, 
               {shownFields.map((definition) => (
                 <div className="fact" key={definition.id}>
                   <dt>{definition.name}</dt>
-                  <dd className={definition.fieldType === 'long_text' ? 'long' : ''}>{formatValue(definition, entry.fields[definition.id]) || 'not set'}</dd>
+                  <dd className={definition.fieldType === 'long_text' ? 'long' : ''}>{(definition.fieldType === 'long_text' || definition.fieldType === 'text') && entry.fields[definition.id] ? <LinkedText worldId={worldId} text={entry.fields[definition.id]} entries={allEntries}/> : (formatValue(definition, entry.fields[definition.id]) || 'not set')}</dd>
                 </div>
               ))}
             </dl>
@@ -358,7 +356,7 @@ export default function EntryView({worldId, entryId, role, pageLink, sideNotes, 
               {entry.typeFields.map((definition) => (
                 <div key={definition.id}>
                   <label htmlFor={`field-${definition.id}`}>{definition.name}{definition.required && ' (required)'}</label>
-                  <FieldInput definition={definition} value={valuesDraft[definition.id]} onChange={(value) => setValue(definition.id, value)}/>
+                  <FieldInput definition={definition} value={valuesDraft[definition.id]} onChange={(value) => setValue(definition.id, value)} entries={allEntries.filter((item) => item.id !== entryId && !/[[\]]/.test(item.name)).map((item) => ({id: item.id, name: item.name, typeName: item.typeName, count: item.relationshipCount}))}/>
                 </div>
               ))}
 

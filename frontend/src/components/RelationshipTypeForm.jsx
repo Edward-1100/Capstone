@@ -1,41 +1,15 @@
 import { useState } from 'react';
+import TypeSelect from './TypeSelect';
 
-function SideChoice({legend, any, ids, entryTypes, onAny, onIds}) {
-  const chosen = entryTypes.filter((type) => ids.includes(type.id));
-  const available = entryTypes.filter((type) => !ids.includes(type.id));
-
-  function handleAdd(event) {
-    if (event.target.value) {
-      onIds(ids.concat([event.target.value]));
-    }
-  }
-
+function SideChoice({title, any, ids, entryTypes, onAny, onIds}) {
   return (
-    <fieldset>
-      <legend>{legend}</legend>
+    <div className="side-box">
+      <h3>{title}</h3>
 
-      <label><input type="radio" checked={any} onChange={() => onAny(true)}/> Any entry type</label>
-      <label><input type="radio" checked={!any} onChange={() => onAny(false)}/> Specific entry types</label>
+      <label className="check"><input type="checkbox" checked={any} onChange={(e) => onAny(e.target.checked)}/> Any entry type</label>
 
-      {!any && (
-        <div className="tagbox">
-          {chosen.map((type) => (
-            <span key={type.id} className="chip">
-              {type.name}
-
-              <button type="button" aria-label={`Remove ${type.name}`} onClick={() => onIds(ids.filter((item) => item !== type.id))}>&times;</button>
-            </span>
-          ))}
-
-          {available.length > 0 && (
-            <select aria-label="Add an entry type" value="" onChange={handleAdd}>
-              <option value="">Add an entry type</option>
-              {available.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
-            </select>
-          )}
-        </div>
-      )}
-    </fieldset>
+      {!any && <TypeSelect types={entryTypes} selectedIds={ids} onChange={onIds} label={`Add a type for ${title}`}/>}
+    </div>
   );
 }
 
@@ -80,20 +54,24 @@ export default function RelationshipTypeForm({initial, entryTypes, submitLabel, 
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form className="rel-form" onSubmit={handleSubmit}>
+      <div className="card-head"><h2>{initial.name ? 'Edit relationship type' : 'New relationship type'}</h2></div>
+
       <div>
         <label htmlFor="relName">Name</label>
-        <input id="relName" type="text" value={name} onChange={(e) => setName(e.target.value)} maxLength={50} required/>
+        <input id="relName" type="text" value={name} onChange={(e) => setName(e.target.value)} maxLength={50} required autoFocus/>
       </div>
 
       <div>
         <label htmlFor="relDescription">Description</label>
-        <textarea id="relDescription" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={500}/>
+        <textarea id="relDescription" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={500}/>
       </div>
 
-      <SideChoice legend="First entry can be" any={fromAny} ids={fromIds} entryTypes={entryTypes} onAny={setFromAny} onIds={setFromIds}/>
+      <div className="side-grid">
+        <SideChoice title="First entry can be" any={fromAny} ids={fromIds} entryTypes={entryTypes} onAny={setFromAny} onIds={setFromIds}/>
 
-      <SideChoice legend="Second entry can be" any={toAny} ids={toIds} entryTypes={entryTypes} onAny={setToAny} onIds={setToIds}/>
+        <SideChoice title="Second entry can be" any={toAny} ids={toIds} entryTypes={entryTypes} onAny={setToAny} onIds={setToIds}/>
+      </div>
 
       {error && <p role="alert">{error}</p>}
 
@@ -112,7 +90,7 @@ export default function RelationshipTypeForm({initial, entryTypes, submitLabel, 
       )}
 
       <div className="actions">
-        <button type="submit" disabled={submitting}>{submitLabel}</button>
+        <button type="submit" className="primary" disabled={submitting}>{submitLabel}</button>
         <button type="button" onClick={onCancel}>Cancel</button>
       </div>
     </form>

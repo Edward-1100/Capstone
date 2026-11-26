@@ -11,7 +11,7 @@ export default function FieldForm({initial, editing, submitLabel, onSubmit, onCa
   const [falseLabel, setFalseLabel] = useState(config.falseLabel || 'False');
   const [min, setMin] = useState(config.min === undefined ? '1' : String(config.min));
   const [max, setMax] = useState(config.max === undefined ? '10' : String(config.max));
-  const [labels, setLabels] = useState(config.labels || {});
+  const [labelRows, setLabelRows] = useState(Object.keys(config.labels || {}).map(Number).sort((a, b) => a - b).map((step) => ({step: String(step), name: config.labels[String(step)]})));
   const [options, setOptions] = useState(config.options || [{label: ''}, {label: ''}]);
   const [error, setError] = useState('');
   const [pendingClear, setPendingClear] = useState(null);
@@ -26,13 +26,29 @@ export default function FieldForm({initial, editing, submitLabel, onSubmit, onCa
     setOptions(options.map((option, position) => (position === index ? Object.assign({}, option, {label: value}) : option)));
   }
 
+  function setLabelRow(index, changes) {
+    setLabelRows(labelRows.map((row, position) => (position === index ? Object.assign({}, row, changes) : row)));
+  }
+
+  function buildLabels() {
+    const labels = {};
+
+    for (const row of labelRows) {
+      if (row.name.trim() !== '') {
+        labels[row.step] = row.name;
+      }
+    }
+
+    return labels;
+  }
+
   function buildConfig() {
     if (fieldType === 'boolean') {
       return {trueLabel, falseLabel};
     }
 
     if (fieldType === 'scale') {
-      return {min: minNumber, max: maxNumber, labels};
+      return {min: minNumber, max: maxNumber, labels: buildLabels()};
     }
 
     if (fieldType === 'choice' || fieldType === 'multi_choice') {
@@ -47,6 +63,12 @@ export default function FieldForm({initial, editing, submitLabel, onSubmit, onCa
 
     if (fieldType === 'scale' && !scaleValid) {
       setError('A scale needs a whole number minimum and a higher maximum, up to 100 steps');
+
+      return;
+    }
+
+    if (fieldType === 'scale' && labelRows.some((row) => row.name.trim() !== '' && !steps.includes(Number(row.step)))) {
+      setError(`Names must be for a number from ${minNumber} to ${maxNumber}`);
 
       return;
     }
@@ -73,61 +95,77 @@ export default function FieldForm({initial, editing, submitLabel, onSubmit, onCa
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <div>
-        <label htmlFor="fieldName">Field name</label>
-        <input id="fieldName" type="text" value={name} onChange={(e) => setName(e.target.value)} maxLength={50} required/>
+    <form className="field-form" onSubmit={handleSubmit}>
+      <div className="form-grid">
+        <div>
+          <label htmlFor="fieldName">Field name</label>
+          <input id="fieldName" type="text" value={name} onChange={(e) => setName(e.target.value)} maxLength={50} required/>
+        </div>
+
+        <div>
+          <label htmlFor="fieldType">Field type</label>
+
+          <select id="fieldType" value={fieldType} onChange={(e) => setFieldType(e.target.value)} disabled={editing}>
+            {Object.keys(FIELD_TYPE_LABELS).map((key) => <option key={key} value={key}>{FIELD_TYPE_LABELS[key]}</option>)}
+          </select>
+
+          {editing && <small className="muted">The type can not be changed</small>}
+        </div>
       </div>
 
-      <div>
-        <label htmlFor="fieldType">Field type</label>
-
-        <select id="fieldType" value={fieldType} onChange={(e) => setFieldType(e.target.value)} disabled={editing}>
-          {Object.keys(FIELD_TYPE_LABELS).map((key) => <option key={key} value={key}>{FIELD_TYPE_LABELS[key]}</option>)}
-        </select>
-
-        {editing && <span>The type can not be changed</span>}
-      </div>
-
-      <div>
-        <label htmlFor="fieldRequired">Required</label>
-        <input id="fieldRequired" type="checkbox" checked={required} onChange={(e) => setRequired(e.target.checked)}/>
-      </div>
+      <label className="check"><input id="fieldRequired" type="checkbox" checked={required} onChange={(e) => setRequired(e.target.checked)}/> Required</label>
 
       {fieldType === 'boolean' && (
-        <div>
-          <label htmlFor="trueLabel">Name for true</label>
-          <input id="trueLabel" type="text" value={trueLabel} onChange={(e) => setTrueLabel(e.target.value)} maxLength={50} required/>
+        <div className="form-grid">
+          <div>
+            <label htmlFor="trueLabel">Name for true</label>
+            <input id="trueLabel" type="text" value={trueLabel} onChange={(e) => setTrueLabel(e.target.value)} maxLength={50} required/>
+          </div>
 
-          <label htmlFor="falseLabel">Name for false</label>
-          <input id="falseLabel" type="text" value={falseLabel} onChange={(e) => setFalseLabel(e.target.value)} maxLength={50} required/>
+          <div>
+            <label htmlFor="falseLabel">Name for false</label>
+            <input id="falseLabel" type="text" value={falseLabel} onChange={(e) => setFalseLabel(e.target.value)} maxLength={50} required/>
+          </div>
         </div>
       )}
 
       {fieldType === 'scale' && (
-        <div>
-          <label htmlFor="scaleMin">Lowest number</label>
-          <input id="scaleMin" type="number" value={min} onChange={(e) => setMin(e.target.value)} required/>
-
-          <label htmlFor="scaleMax">Highest number</label>
-          <input id="scaleMax" type="number" value={max} onChange={(e) => setMax(e.target.value)} required/>
-
-          {steps.map((step) => (
-            <div key={step}>
-              <label htmlFor={`step-${step}`}>Name for {step}</label>
-              <input id={`step-${step}`} type="text" value={labels[String(step)] || ''} onChange={(e) => setLabels(Object.assign({}, labels, {[String(step)]: e.target.value}))} maxLength={50}/>
+        <>
+          <div className="form-grid">
+            <div>
+              <label htmlFor="scaleMin">Lowest number</label>
+              <input id="scaleMin" type="number" value={min} onChange={(e) => setMin(e.target.value)} required/>
             </div>
-          ))}
-        </div>
+
+            <div>
+              <label htmlFor="scaleMax">Highest number</label>
+              <input id="scaleMax" type="number" value={max} onChange={(e) => setMax(e.target.value)} required/>
+            </div>
+          </div>
+
+          <div className="option-rows">
+            <b>Names for numbers</b>
+
+            {labelRows.map((row, index) => (
+              <div key={index} className="option-row">
+                <input type="number" className="step-input" aria-label="Number" placeholder="Number" value={row.step} onChange={(e) => setLabelRow(index, {step: e.target.value})} min={scaleValid ? minNumber : undefined} max={scaleValid ? maxNumber : undefined}/>
+                <input type="text" aria-label="Name" placeholder="Name" value={row.name} onChange={(e) => setLabelRow(index, {name: e.target.value})} maxLength={50}/>
+                <button type="button" onClick={() => setLabelRows(labelRows.filter((item, position) => position !== index))}>Remove</button>
+              </div>
+            ))}
+
+            {labelRows.length < 20 && <button type="button" onClick={() => setLabelRows(labelRows.concat([{step: '', name: ''}]))}>Add name</button>}
+          </div>
+        </>
       )}
 
       {(fieldType === 'choice' || fieldType === 'multi_choice') && (
-        <div>
-          <p>Options</p>
+        <div className="option-rows">
+          <b>Options</b>
 
           {options.map((option, index) => (
-            <div key={option.id || index}>
-              <input type="text" value={option.label} onChange={(e) => setOptionLabel(index, e.target.value)} maxLength={50}/>
+            <div key={option.id || index} className="option-row">
+              <input type="text" aria-label={`Option ${index + 1}`} value={option.label} onChange={(e) => setOptionLabel(index, e.target.value)} maxLength={50}/>
               <button type="button" onClick={() => setOptions(options.filter((item, position) => position !== index))}>Remove</button>
             </div>
           ))}
@@ -146,7 +184,7 @@ export default function FieldForm({initial, editing, submitLabel, onSubmit, onCa
       )}
 
       <div className="actions">
-        <button type="submit" disabled={submitting}>{submitLabel}</button>
+        <button type="submit" className="primary" disabled={submitting}>{submitLabel}</button>
         <button type="button" onClick={onCancel}>Cancel</button>
       </div>
     </form>

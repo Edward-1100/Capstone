@@ -17,15 +17,15 @@ export default function JoinPage() {
 
   return (
     <Page size="narrow">
-      <div className="panel">
-        <h1 className="title">Join world</h1>
+      <h1 className="title page-title">Join world</h1>
 
+      <section className="card">
         {!error && <p>Loading</p>}
 
         {error && <p role="alert">{error}</p>}
 
         {error && <p><Link to="/">Back to your worlds</Link></p>}
-      </div>
+      </section>
     </Page>
   );
 }

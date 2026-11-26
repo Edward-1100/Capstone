@@ -6,15 +6,19 @@ export default function PickBox({options, selected, onAdd, onRemove, placeholder
 
   return (
     <div className="pick-box">
-      {chosen.map((option) => (
-        <span key={option.id} className="chip">
-          {option.swatch}{option.label}
-
-          <button type="button" aria-label={`Remove ${option.label}`} onClick={() => onRemove(option.id)}>&times;</button>
-        </span>
-      ))}
-
       <Typeahead options={available} onPick={onAdd} placeholder={placeholder} label={label}/>
+
+      {chosen.length > 0 && (
+        <div className="pick-chips">
+          {chosen.map((option) => (
+            <span key={option.id} className="chip">
+              {option.swatch}{option.label}
+
+              <button type="button" aria-label={`Remove ${option.label}`} onClick={() => onRemove(option.id)}>&times;</button>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

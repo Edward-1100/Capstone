@@ -44,9 +44,9 @@ describe('EntriesService', () => {
 
       db.query.mockResolvedValue({rows: []});
 
-      await service.list('w1', {q: '  keep ', types: TAG_C, excludeTypes: TAG_A, tags: `${TAG_A},${TAG_B}`, excludeTags: TAG_C, tagMode: 'any', inside: TAG_B, excludeInside: TAG_C, relations: `${TAG_A}:to:${TAG_B}`, excludeRelations: `${TAG_B}:from:${TAG_C},${TAG_A}:to:${TAG_C}`});
+      await service.list('w1', {q: '  keep ', types: TAG_C, excludeTypes: TAG_A, tags: `${TAG_A},${TAG_B}`, excludeTags: TAG_C, tagMode: 'any', inside: TAG_B, excludeInside: TAG_C, relations: `${TAG_A}:to:${TAG_B}`, excludeRelations: `${TAG_B}:from:${TAG_C},${TAG_A}:either:${TAG_C}`});
 
-      expect(db.query.mock.calls[0][1]).toEqual(['w1', 'keep', [TAG_C], false, [TAG_A], false, [TAG_A, TAG_B], [TAG_C], 'any', [TAG_B], [TAG_C], [TAG_A], ['to'], [TAG_B], [TAG_B, TAG_A], ['from', 'to'], [TAG_C, TAG_C]]);
+      expect(db.query.mock.calls[0][1]).toEqual(['w1', 'keep', [TAG_C], false, [TAG_A], false, [TAG_A, TAG_B], [TAG_C], 'any', [TAG_B], [TAG_C], [TAG_A], ['to'], [TAG_B], [TAG_B, TAG_A], ['from', 'either'], [TAG_C, TAG_C]]);
     });
 
     it('lets the none type through as its own flag', async () => {

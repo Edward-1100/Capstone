@@ -1,13 +1,22 @@
-import { scaleSteps, stepLabel } from '../utils/fields';
+import { stepLabel } from '../utils/fields';
+import LinkTextarea from './LinkTextarea';
 
-export default function FieldInput({definition, value, onChange}) {
+export default function FieldInput({definition, value, onChange, entries}) {
   const id = `field-${definition.id}`;
   const config = definition.config || {};
   const type = definition.fieldType;
   const empty = value === undefined || value === null;
 
+  if (type === 'text' && entries) {
+    return <LinkTextarea single id={id} label={definition.name} value={empty ? '' : value} onChange={onChange} maxLength={500} entries={entries}/>;
+  }
+
   if (type === 'text') {
     return <input id={id} type="text" value={empty ? '' : value} onChange={(e) => onChange(e.target.value)} maxLength={500}/>;
+  }
+
+  if (type === 'long_text' && entries) {
+    return <LinkTextarea id={id} label={definition.name} value={empty ? '' : value} onChange={onChange} maxLength={20000} entries={entries}/>;
   }
 
   if (type === 'long_text') {
@@ -31,15 +40,14 @@ export default function FieldInput({definition, value, onChange}) {
   }
 
   if (type === 'scale') {
-    const steps = scaleSteps(config);
-    const outside = !empty && value !== '' && !steps.includes(value);
+    const label = empty || value === '' ? '' : stepLabel(config, value);
 
     return (
-      <select id={id} value={empty ? '' : String(value)} onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value))}>
-        <option value="">Not set</option>
-        {outside && <option value={String(value)}>{value} (outside the range)</option>}
-        {steps.map((step) => <option key={step} value={String(step)}>{stepLabel(config, step)}</option>)}
-      </select>
+      <span className="scale-input">
+        <input id={id} type="number" step="1" min={config.min} max={config.max} placeholder={`${config.min} to ${config.max}`} value={empty ? '' : value} onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value))}/>
+
+        {label !== '' && label !== String(value) && <span className="muted">{label.slice(String(value).length + 3)}</span>}
+      </span>
     );
   }
 
@@ -59,9 +67,9 @@ export default function FieldInput({definition, value, onChange}) {
   }
 
   return (
-    <span id={id}>
+    <span id={id} className="multi-options">
       {(config.options || []).map((option) => (
-        <label key={option.id}>
+        <label key={option.id} className={selected.includes(option.id) ? 'multi-option selected' : 'multi-option'}>
           <input type="checkbox" checked={selected.includes(option.id)} onChange={() => toggle(option.id)}/>
           {option.label}
         </label>

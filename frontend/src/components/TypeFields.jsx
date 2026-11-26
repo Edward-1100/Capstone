@@ -53,9 +53,9 @@ export default function TypeFields({worldId, type, canEdit, onChanged}) {
           <li key={field.id} className={editingId === field.id ? 'open' : ''}>
             {editingId !== field.id && (
               <>
-                <span className="kind">{field.name}</span>
+                <span className="kind">{field.name}{field.required && <b className="req" title="Required">*</b>}</span>
 
-                <span className="other">{describeField(field)}{field.required && ', required'}, {countLabel(field.usageCount, 'entry has', 'entries have')} a value</span>
+                <span className="other">{describeField(field)}</span>
 
                 {canEdit && (
                   <span className="row-actions">

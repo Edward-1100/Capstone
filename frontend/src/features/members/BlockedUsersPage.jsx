@@ -37,8 +37,16 @@ export default function BlockedUsersPage() {
 
   return (
     <Page size="medium" crumbs={[{to: '/', label: 'Your worlds'}, {label: 'Blocked users'}]}>
-      <div className="panel">
-        <h1 className="title">Blocked users</h1>
+      <div className="page-head">
+        <div>
+          <h1 className="title">Blocked users</h1>
+
+          <p className="muted">People on this list can not invite you to their worlds</p>
+        </div>
+      </div>
+
+      <section className="card">
+        <h2>Block a user</h2>
 
         <form className="inline-form" onSubmit={handleAdd}>
           <input type="text" aria-label="Username" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} maxLength={45}/>
@@ -52,6 +60,8 @@ export default function BlockedUsersPage() {
 
         {blocks && blocks.length === 0 && <p className="muted">No blocked users</p>}
 
+        <h2>Blocked</h2>
+
         <ul className="member-list">
           {(blocks ?? []).map((block) => (
             <li key={block.userId}>
@@ -61,7 +71,7 @@ export default function BlockedUsersPage() {
             </li>
           ))}
         </ul>
-      </div>
+      </section>
     </Page>
   );
 }

@@ -153,7 +153,7 @@ export default function MapManager({worldId, list, currentId, canEdit, onOpen, o
       </div>
 
       {list.maps.length > 0 && (
-        <ul className="worlds">
+        <ul className="map-rows">
           {list.maps.map((map) => <MapRow key={map.id} worldId={worldId} map={map} current={map.id === currentId} canEdit={canEdit} onOpen={onOpen} onChanged={onChanged}/>)}
         </ul>
       )}

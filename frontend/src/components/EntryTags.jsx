@@ -54,23 +54,27 @@ export default function EntryTags({worldId, entryId, canEdit}) {
     <div>
       <h2>Tags</h2>
 
-      <div className="tagbox">
+      <div className="pick-box">
+        {canEdit && available.length > 0 && (
+          <Typeahead options={available.map((tag) => ({id: tag.id, label: tag.name, count: tag.entryCount}))} onPick={handleAdd} placeholder="Search to add a tag" label="Add a tag"/>
+        )}
+
         {entryTags.length === 0 && !canEdit && <span className="muted">No tags yet</span>}
 
         {canEdit && allTags.length === 0 && <span className="muted">No tags exist in this world yet. <Link to={`/worlds/${worldId}/tags`}>Click here to create some</Link></span>}
 
-        {entryTags.map((tag) => (
-          <span key={tag.id} className="chip">
-            <TagSwatch color={tag.color}/>{tag.name}
+        {entryTags.length > 0 && (
+          <div className="pick-chips">
+            {entryTags.map((tag) => (
+              <span key={tag.id} className="chip">
+                <TagSwatch color={tag.color}/>{tag.name}
 
-            {tag.auto && <Link className="auto" to={`/worlds/${worldId}/tags?tag=${tag.id}&entry=${entryId}`}>auto</Link>}
+                {tag.auto && <Link className="auto" to={`/worlds/${worldId}/tags?tag=${tag.id}&entry=${entryId}`}>auto</Link>}
 
-            {canEdit && !tag.auto && <button type="button" aria-label={`Remove ${tag.name}`} onClick={() => handleRemove(tag.id)}>&times;</button>}
-          </span>
-        ))}
-
-        {canEdit && available.length > 0 && (
-          <Typeahead options={available.map((tag) => ({id: tag.id, label: tag.name, count: tag.entryCount}))} onPick={handleAdd} placeholder="Add a tag" label="Add a tag"/>
+                {canEdit && !tag.auto && <button type="button" aria-label={`Remove ${tag.name}`} onClick={() => handleRemove(tag.id)}>&times;</button>}
+              </span>
+            ))}
+          </div>
         )}
       </div>
 
