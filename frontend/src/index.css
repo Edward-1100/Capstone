@@ -1173,6 +1173,8 @@ button.slide:hover {
   margin: 0;
   max-height: 5rem;
   overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .facts dd.long {
@@ -3150,6 +3152,8 @@ button.link, .graph-info button.link {
 
 .spot-detail dd {
   margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .spot-layout {
@@ -4229,6 +4233,8 @@ button.link {
 
 .spot-detail dd {
   margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .spot-layout {
